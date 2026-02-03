@@ -82,6 +82,7 @@ def execute_match(
             event_log_path=event_log_path,
             seed=game_seed,
             bot_timeout=config.bot_timeout_seconds,
+            enable_logging=config.save_replays,  # Only log if replays requested
         )
 
         # Execute game

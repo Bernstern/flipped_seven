@@ -5,6 +5,8 @@ This module defines the configuration dataclass for running tournaments with
 parallel execution of matches.
 """
 
+import os
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -72,3 +74,52 @@ class TournamentConfig:
                 f"Duplicate bot class names found: {', '.join(sorted(duplicate_names))}. "
                 "All bot classes must have unique names."
             )
+
+        # Validate output directory is writable
+        self._validate_output_directory()
+
+    def _validate_output_directory(self) -> None:
+        """
+        Validate that the output directory is writable and has sufficient disk space.
+
+        Raises:
+            InvalidConfiguration: If directory cannot be created or is not writable
+        """
+        # Ensure output directory exists
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            raise InvalidConfiguration(
+                f"Cannot create output directory '{self.output_dir}': {e}\n"
+                f"Suggestion: Check parent directory exists and you have write permissions."
+            ) from e
+
+        # Check if directory is writable
+        if not os.access(self.output_dir, os.W_OK):
+            raise InvalidConfiguration(
+                f"Output directory '{self.output_dir}' is not writable.\n"
+                f"Suggestion: Check directory permissions (need write access)."
+            )
+
+        # Check available disk space (warn if less than 100MB)
+        try:
+            stat = shutil.disk_usage(self.output_dir)
+            available_mb = stat.free / (1024 * 1024)
+
+            if available_mb < 10:
+                raise InvalidConfiguration(
+                    f"Insufficient disk space in '{self.output_dir}': {available_mb:.1f}MB available.\n"
+                    f"Suggestion: Free up disk space or choose a different output directory."
+                )
+            elif available_mb < 100:
+                # This is just a warning, not an error - we'll let it proceed
+                import warnings
+                warnings.warn(
+                    f"Low disk space in '{self.output_dir}': {available_mb:.1f}MB available. "
+                    f"Consider freeing up space if running large tournaments.",
+                    UserWarning
+                )
+        except OSError:
+            # If we can't check disk space, continue anyway
+            # (some filesystems don't support this)
+            pass

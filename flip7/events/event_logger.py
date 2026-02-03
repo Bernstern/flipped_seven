@@ -2,6 +2,8 @@
 
 This module provides an EventLogger class that writes events to a JSONL file,
 with context manager support for proper resource management and crash safety.
+Also provides a NullEventLogger for performance-critical scenarios where logging
+is not needed.
 """
 
 from pathlib import Path
@@ -108,3 +110,31 @@ class EventLogger:
 
         # Flush immediately for crash safety
         self._file.flush()
+
+
+class NullEventLogger:
+    """A no-op event logger for performance-critical scenarios.
+
+    This logger implements the same interface as EventLogger but discards
+    all events without any I/O operations. Use this in tournaments or
+    performance testing where event logging is not needed.
+
+    Example:
+        >>> logger = NullEventLogger()
+        >>> with logger as log:
+        ...     log.log_event(event)  # Does nothing
+    """
+
+    def __enter__(self) -> "NullEventLogger":
+        """Enter context manager (no-op)."""
+        return self
+
+    def __exit__(self, exc_type: type[BaseException] | None,
+                 exc_val: BaseException | None,
+                 exc_tb: Any | None) -> None:
+        """Exit context manager (no-op)."""
+        pass
+
+    def log_event(self, event: Event) -> None:
+        """Discard event without logging (no-op)."""
+        pass

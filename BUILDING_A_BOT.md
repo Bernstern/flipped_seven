@@ -1,25 +1,12 @@
 # Building a Flip 7 Bot
 
-Complete guide to creating, testing, and deploying your own competitive Flip 7 bot.
+Technical reference for creating competitive Flip 7 bots.
 
-## Table of Contents
-
-1. [Quick Start](#quick-start)
-2. [Bot Interface Requirements](#bot-interface-requirements)
-3. [Decision Context Reference](#decision-context-reference)
-4. [Return Values](#return-values)
-5. [Testing Your Bot](#testing-your-bot)
-6. [Example Bots](#example-bots)
-7. [Strategy Tips](#strategy-tips)
-8. [Debugging](#debugging)
-
----
+**Platform Requirement:** Unix signals required for bot sandboxing. Windows users must use WSL.
 
 ## Quick Start
 
-### Step 1: Create Your Bot File
-
-Create `flip7/bots/my_bot.py`:
+Create `flip7/bots/my_bot.py` (must be in `flip7/bots/` directory):
 
 ```python
 from flip7.bots.base import BaseBot
@@ -35,14 +22,12 @@ class MyBot(BaseBot):
         self, context: BotDecisionContext
     ) -> Literal["hit", "pass"]:
         """Decide whether to draw another card or lock in your score."""
-        # Your strategy here
         return "hit"
 
     def decide_use_second_chance(
         self, context: BotDecisionContext, duplicate: NumberCard
     ) -> bool:
         """Decide whether to use Second Chance to avoid busting."""
-        # Your strategy here
         return True
 
     def choose_action_target(
@@ -51,119 +36,75 @@ class MyBot(BaseBot):
         eligible: list[str]
     ) -> str:
         """Choose which player to target with an action card."""
-        # Your strategy here
         return eligible[0]
 ```
 
-### Step 2: Run Compliance Tests
+Run compliance tests (all must pass):
 
 ```bash
 uv run pytest tests/test_bot_compliance.py::test_bot_implements_protocol[MyBot] -v
 ```
 
-All tests must pass before your bot can compete in tournaments.
-
-### Step 3: Test Locally
+Test locally:
 
 ```bash
-uv run flip7 quick-game -p 2 -b flip7.bots.my_bot.MyBot -b random
+uv run flip7-step my_bot.MyBot ConservativeBot  # Interactive stepper
+uv run flip7  # Tournament (edit tournament_config.py first)
 ```
-
----
 
 ## Bot Interface Requirements
 
-Your bot MUST implement three methods from the `Bot` protocol:
-
 ### 1. `decide_hit_or_pass(context: BotDecisionContext) -> Literal["hit", "pass"]`
 
-**When Called:** On your turn, when you must decide whether to draw another card.
+**Called:** On your turn when deciding whether to draw another card.
 
-**Must Return:** Exactly the string `"hit"` or `"pass"`
+**Returns:** `"hit"` (draw card) or `"pass"` (lock in score, end turn)
 
-**Purpose:**
-- `"hit"` = Draw another card from the deck
-- `"pass"` = Lock in your current score and end your turn
-
-**Called Every Turn Until:**
-- You pass
-- You bust (draw a duplicate number)
-- You achieve Flip 7 (7 unique numbers - auto-passes)
-- You get frozen by an action card
-- You timeout
-
----
+**Called until:** You pass, bust, achieve Flip 7 (auto-pass), get frozen, or timeout.
 
 ### 2. `decide_use_second_chance(context: BotDecisionContext, duplicate: NumberCard) -> bool`
 
-**When Called:** When you draw a duplicate number card AND you have a Second Chance card.
+**Called:** When you draw a duplicate number card AND possess a Second Chance card.
 
 **Parameters:**
-- `context`: Current game state
 - `duplicate`: The `NumberCard` that caused the duplicate (e.g., `NumberCard(value=7)`)
 
-**Must Return:** `True` or `False`
+**Returns:** `True` (use Second Chance, discard both cards, end turn, score normally) or `False` (bust, score 0)
 
-**Purpose:**
-- `True` = Use Second Chance (discard both the duplicate and Second Chance card, end turn, score normally)
-- `False` = Don't use Second Chance (bust, score 0 this round)
-
-**Important:** If you return `True`, your turn ends immediately even if you could draw more cards.
-
----
+**Note:** Returning `True` immediately ends your turn.
 
 ### 3. `choose_action_target(context: BotDecisionContext, action: ActionType, eligible: list[str]) -> str`
 
-**When Called:** When you draw an action card and must choose who gets the effect.
+**Called:** When you draw an action card.
 
 **Parameters:**
-- `context`: Current game state
-- `action`: Which action card (`ActionType.FREEZE`, `ActionType.FLIP_THREE`, or `ActionType.SECOND_CHANCE`)
-- `eligible`: List of valid player IDs you can target (always includes at least one player)
+- `action`: `ActionType.FREEZE`, `ActionType.FLIP_THREE`, or `ActionType.SECOND_CHANCE`
+- `eligible`: Valid player IDs you can target (always non-empty)
 
-**Must Return:** One of the player IDs from the `eligible` list
+**Returns:** One player ID from `eligible` list. Can target yourself (`context.my_tableau.player_id`).
 
-**Purpose:**
-- `ActionType.FREEZE`: Target player immediately passes and locks in their current score
-- `ActionType.FLIP_THREE`: Target player must draw 3 cards immediately
-- `ActionType.SECOND_CHANCE`: Target player receives a Second Chance card for later use
-
-**Important:** You can target yourself! Your bot's player ID is in `context.my_tableau.player_id`.
-
----
+**Effects:**
+- `FREEZE`: Target immediately passes and locks in current score
+- `FLIP_THREE`: Target must draw 3 cards immediately
+- `SECOND_CHANCE`: Target receives Second Chance card
 
 ## Decision Context Reference
 
-Every decision method receives a `BotDecisionContext` object with complete game information.
-
-### BotDecisionContext Fields
+### BotDecisionContext
 
 ```python
 @dataclass
 class BotDecisionContext:
-    # Your cards and status
-    my_tableau: PlayerTableau
-
-    # All opponents' cards (dict: player_id -> PlayerTableau)
-    opponent_tableaus: dict[str, PlayerTableau]
-
-    # Cards remaining in deck
-    deck_remaining: int
-
-    # Your cumulative score across all rounds
-    my_current_score: int
-
-    # Opponents' cumulative scores (dict: player_id -> score)
-    opponent_scores: dict[str, int]
-
-    # Which round (1-indexed)
-    current_round: int
-
-    # Score needed to win (usually 200)
-    target_score: int
+    my_tableau: PlayerTableau                      # Your cards and status
+    opponent_tableaus: dict[str, PlayerTableau]    # All opponents' cards
+    deck_remaining: int                            # Cards remaining in deck
+    my_current_score: int                          # Your cumulative score
+    opponent_scores: dict[str, int]                # Opponents' cumulative scores
+    current_round: int                             # Round number (1-indexed)
+    target_score: int                              # Score to win (usually 200)
 ```
 
-### PlayerTableau Fields
+### PlayerTableau
 
 ```python
 @dataclass
@@ -194,123 +135,75 @@ class ActionCard:
     action_type: ActionType  # FREEZE, FLIP_THREE, or SECOND_CHANCE
 ```
 
-### Example: Accessing Context Data
+### Context Access Patterns
 
 ```python
 def decide_hit_or_pass(self, context: BotDecisionContext) -> Literal["hit", "pass"]:
-    # Get your current hand value
+    # Hand value
     hand_value = sum(card.value for card in context.my_tableau.number_cards)
 
-    # Count unique numbers (for Flip 7)
+    # Unique numbers (for Flip 7)
     unique_numbers = len(set(card.value for card in context.my_tableau.number_cards))
 
-    # Check if you have X2 modifier
+    # Has X2 modifier
     has_x2 = any(m.modifier == "X2" for m in context.my_tableau.modifier_cards)
 
-    # Check if you have Second Chance
+    # Has Second Chance
     has_second_chance = context.my_tableau.second_chance
 
-    # See how many cards opponents have
+    # Opponent card counts
     opponent_card_counts = {
         pid: len(tableau.number_cards)
         for pid, tableau in context.opponent_tableaus.items()
     }
 
-    # Check if you're winning
+    # Am winning
     am_winning = context.my_current_score == max(
         [context.my_current_score] + list(context.opponent_scores.values())
     )
 
-    # Your decision logic here...
     return "hit" if hand_value < 15 else "pass"
 ```
 
----
+## Return Value Requirements
 
-## Return Values
+### `decide_hit_or_pass`
 
-### `decide_hit_or_pass` Return Values
+Must return: `"hit"` or `"pass"` (exact strings, lowercase)
 
-**MUST return exactly one of these strings:**
-- `"hit"` - Draw another card
-- `"pass"` - End your turn
+Invalid: `"Hit"`, `"h"`, `True/False`, `None`
 
-**Invalid returns will cause your bot to fail compliance tests:**
-- ❌ `"Hit"` (wrong capitalization)
-- ❌ `"h"` (abbreviation)
-- ❌ `True/False` (wrong type)
-- ❌ `None` (no return)
+### `decide_use_second_chance`
 
-### `decide_use_second_chance` Return Values
+Must return: `True` or `False` (boolean)
 
-**MUST return a boolean:**
-- `True` - Use Second Chance (avoid bust, end turn)
-- `False` - Don't use Second Chance (bust, score 0)
+Invalid: `"True"`, `1`, `0`, `None`
 
-**Invalid returns:**
-- ❌ `"True"` (string, not bool)
-- ❌ `1` or `0` (int, not bool)
-- ❌ `None`
+### `choose_action_target`
 
-### `choose_action_target` Return Values
+Must return: One player ID from `eligible` list (string)
 
-**MUST return one of the player IDs from the `eligible` list:**
+Invalid: Player ID not in `eligible`, `None`
 
-```python
-def choose_action_target(
-    self, context: BotDecisionContext,
-    action: ActionType,
-    eligible: list[str]
-) -> str:
-    # CORRECT: Return one of the eligible IDs
-    return eligible[0]
+## Testing
 
-    # CORRECT: Return your own ID (if in eligible list)
-    if context.my_tableau.player_id in eligible:
-        return context.my_tableau.player_id
-
-    # INCORRECT: Return an ID not in eligible
-    return "some_other_player"  # Will cause error!
-```
-
----
-
-## Testing Your Bot
-
-### 1. Compliance Tests (REQUIRED)
+### 1. Compliance Tests (Required)
 
 ```bash
-# Test that your bot implements the interface correctly
 uv run pytest tests/test_bot_compliance.py -v -k MyBot
 ```
 
-**Your bot MUST pass all 45 compliance tests:**
-- Protocol implementation
-- Valid return values
-- Edge case handling (empty hand, no opponents, etc.)
-- No crashes on valid game states
+All 45 tests must pass: protocol implementation, return values, edge cases, no crashes.
 
-**If tests fail:**
-1. Read the error message carefully
-2. Fix the specific method mentioned
-3. Re-run tests
-4. Repeat until all pass
-
-### 2. Single Game Test
+### 2. Interactive Stepper
 
 ```bash
-# Play one game against RandomBot
-uv run flip7 quick-game -p 2 -b flip7.bots.my_bot.MyBot -b random
+uv run flip7-step my_bot.MyBot ConservativeBot
 ```
 
-This runs a complete game to 200 points and shows:
-- Winner
-- Final scores
-- Number of rounds
+Step through a round turn-by-turn to observe decisions and game state.
 
 ### 3. Multi-Game Test
-
-Create `test_my_bot.py`:
 
 ```python
 from pathlib import Path
@@ -354,58 +247,38 @@ if __name__ == "__main__":
     test_multiple_games()
 ```
 
-Run it:
-```bash
-uv run python test_my_bot.py
-```
+Run: `uv run python test_my_bot.py`
 
 ### 4. Tournament Test
 
-Create `my_tournament.py`:
+Edit `tournament_config.py`:
 
 ```python
-from pathlib import Path
-from flip7.tournament.config import TournamentConfig
-from flip7.bots import RandomBot, ConservativeBot
-from flip7.bots.my_bot import MyBot
-
-
-config = TournamentConfig(
-    tournament_name="MyBot Test Tournament",
-    players_per_game=3,
-    best_of_n=5,  # Best of 5 per matchup
-    bot_classes=[MyBot, RandomBot, ConservativeBot],
-    bot_timeout_seconds=5.0,
-    output_dir=Path("./tournament_results"),
-    save_replays=True,
-    max_workers=4,
-    tournament_seed=42,
-)
+GAMES_PER_MATCHUP_HEAD_TO_HEAD = 100  # Default: 100,000
+GAMES_PER_MATCHUP_ALL_VS_ALL = 100    # Default: 1,000,000
+SAVE_REPLAYS = True
 ```
 
-Run it:
-```bash
-uv run flip7 run-tournament my_tournament.py
-```
+Run: `uv run flip7`
 
-Results saved to `./tournament_results/tournament_results.json`.
+Results: `./tournament_results_head_to_head/tournament_results.json`, `./tournament_results_all_vs_all/tournament_results.json`
 
-### 5. Human Testing (Play Against Your Bot)
+### 5. Scenario Testing
 
 ```bash
-uv run flip7 quick-game -p 2 -b human -b flip7.bots.my_bot.MyBot
+# Test early game
+uv run flip7-step my_bot.MyBot RandomBot --round 1
+
+# Test when behind
+uv run flip7-step my_bot.MyBot RandomBot --scores 120,180 --round 10
+
+# Test when ahead
+uv run flip7-step my_bot.MyBot RandomBot --scores 180,120 --round 10
 ```
-
-This lets you:
-- See exactly what your bot sees
-- Understand decision points
-- Test edge cases interactively
-
----
 
 ## Example Bots
 
-### RandomBot (Baseline)
+### RandomBot
 
 ```python
 class RandomBot(BaseBot):
@@ -427,21 +300,19 @@ class RandomBot(BaseBot):
         return random.choice(eligible)
 ```
 
-### ConservativeBot (Simple Strategy)
+### ConservativeBot
 
 ```python
 class ConservativeBot(BaseBot):
     """Plays conservatively to minimize busting."""
 
     def decide_hit_or_pass(self, context: BotDecisionContext) -> Literal["hit", "pass"]:
-        # Pass at 15+ points
         hand_value = sum(card.value for card in context.my_tableau.number_cards)
         return "pass" if hand_value >= 15 else "hit"
 
     def decide_use_second_chance(
         self, context: BotDecisionContext, duplicate: NumberCard
     ) -> bool:
-        # Always use Second Chance to avoid busting
         return True
 
     def choose_action_target(
@@ -449,7 +320,6 @@ class ConservativeBot(BaseBot):
         action: ActionType,
         eligible: list[str]
     ) -> str:
-        # Random targeting
         return random.choice(eligible)
 ```
 
@@ -460,7 +330,6 @@ class AdvancedBot(BaseBot):
     """Template showing advanced techniques."""
 
     def decide_hit_or_pass(self, context: BotDecisionContext) -> Literal["hit", "pass"]:
-        # Calculate current expected score
         hand_value = sum(card.value for card in context.my_tableau.number_cards)
         unique_count = len(set(card.value for card in context.my_tableau.number_cards))
 
@@ -476,18 +345,10 @@ class AdvancedBot(BaseBot):
             expected_score *= 2
         expected_score += modifier_bonus
 
-        # Add Flip 7 bonus if we have 7 unique
         if unique_count == 7:
             expected_score += 15
 
-        # Calculate bust probability
-        cards_in_hand = {card.value for card in context.my_tableau.number_cards}
-        # With perfect information, calculate exact probability of drawing duplicate
-        # (requires tracking discard pile and opponent cards)
-
         # Strategy based on game phase
-        rounds_remaining = (context.target_score - context.my_current_score) / 20  # rough estimate
-
         if context.current_round <= 3:
             # Early game: aggressive, go for Flip 7
             if unique_count < 7:
@@ -503,7 +364,6 @@ class AdvancedBot(BaseBot):
     def decide_use_second_chance(
         self, context: BotDecisionContext, duplicate: NumberCard
     ) -> bool:
-        # Use Second Chance unless hand is worthless
         hand_value = sum(card.value for card in context.my_tableau.number_cards)
 
         # If hand is very low value, might be better to bust and start fresh
@@ -530,7 +390,6 @@ class AdvancedBot(BaseBot):
 
         elif action == ActionType.FLIP_THREE:
             # Give Flip Three to player most likely to bust
-            # (player with most cards = more likely to hit duplicate)
             target = max(
                 eligible,
                 key=lambda p: len(context.opponent_tableaus[p].number_cards)
@@ -539,108 +398,72 @@ class AdvancedBot(BaseBot):
             return target
 
         else:  # SECOND_CHANCE
-            # Give to yourself if you're in eligible list, otherwise random
+            # Give to yourself if eligible, otherwise first player
             if context.my_tableau.player_id in eligible:
                 return context.my_tableau.player_id
             return eligible[0]
 ```
 
----
+## Strategy
 
-## Strategy Tips
-
-### 1. Understand Scoring
+### Scoring Formula
 
 ```
 Final Score = (Number Cards Sum) × (X2 if present) + (All +N modifiers) + (Flip 7 bonus if 7 unique)
 ```
 
-**Example:**
-- Cards: [10, 11, 12, 9, 8, 7, 6] = 63 points
-- Has X2: 63 × 2 = 126
-- Has +10: 126 + 10 = 136
-- 7 unique numbers: 136 + 15 = **151 points**
+**Example:** Cards [10, 11, 12, 9, 8, 7, 6] = 63, X2 = 126, +10 = 136, Flip 7 = 151 points
 
-### 2. Risk Management
+### Risk Assessment
 
-**Low Risk:**
-- Few cards in hand (2-3)
-- Have Second Chance
-- Early in round
+**Bust Probability:** (Cards in Hand) / (Deck Remaining)
 
-**High Risk:**
-- Many cards (5-6)
-- No Second Chance
-- Cards are spread out (many different numbers)
+**Low Risk:** 2-3 cards, have Second Chance, early in round
 
-**Bust Probability = (Cards in Hand) / (Deck Remaining)**
+**High Risk:** 5-6 cards, no Second Chance, many unique numbers
 
-### 3. Flip 7 Strategy
+### Flip 7 Strategy
 
-- Flip 7 gives +15 bonus AND auto-passes
+- +15 bonus AND auto-pass
 - Worth ~2-3 extra cards of value
-- Requires 7 unique numbers (0-12, so 13 possible)
+- Requires 7 unique numbers from 0-12 (13 possible)
 - More achievable with larger deck
 
-### 4. Game Phases
+### Game Phases
 
-**Early Game (Rounds 1-5):**
-- Be aggressive
-- Go for Flip 7
-- Build score foundation
+**Early (Rounds 1-5):** Aggressive, go for Flip 7, build score foundation
 
-**Mid Game (Rounds 6-10):**
-- Balanced approach
-- Monitor opponents
-- Adjust based on position
+**Mid (Rounds 6-10):** Balanced, monitor opponents, adjust based on position
 
-**Late Game (Round 10+):**
-- Conservative if ahead
-- Aggressive if behind
-- Calculate exact points needed
+**Late (Round 10+):** Conservative if ahead, aggressive if behind, calculate exact points needed
 
-### 5. Opponent Modeling
+### Positional Play
 
 ```python
-# Track what opponents typically do
 def decide_hit_or_pass(self, context: BotDecisionContext) -> Literal["hit", "pass"]:
-    # Who's winning?
     scores = [context.my_current_score] + list(context.opponent_scores.values())
     leader_score = max(scores)
 
-    # Am I behind?
     if context.my_current_score < leader_score:
-        # Need to take more risks
-        threshold = 18
+        threshold = 18  # Take more risks when behind
     else:
-        # Can play safer
-        threshold = 15
+        threshold = 15  # Play safer when ahead
 
     hand_value = sum(card.value for card in context.my_tableau.number_cards)
     return "pass" if hand_value >= threshold else "hit"
 ```
 
-### 6. Action Card Tactics
+### Action Card Tactics
 
-**Freeze:**
-- Use on player with good hand
-- Use on leader
-- Deny them Flip 7 opportunity
+**Freeze:** Use on player with good hand or leader to deny Flip 7 opportunity
 
-**Flip Three:**
-- Force risky draws on opponents
-- Higher chance they bust
-- Can backfire if they get good cards
+**Flip Three:** Force risky draws on opponents (higher bust chance, but can backfire)
 
-**Second Chance:**
-- Very valuable - keep for yourself if possible
-- Give to weak opponents to help them (if strategically beneficial)
-
----
+**Second Chance:** Highly valuable, keep for yourself when possible
 
 ## Debugging
 
-### Enable Logging
+### Logging
 
 ```python
 import logging
@@ -656,7 +479,6 @@ class MyBot(BaseBot):
 
         self.logger.info(f"Hand value: {hand_value}")
         self.logger.info(f"Deck remaining: {context.deck_remaining}")
-        self.logger.info(f"Opponents: {list(context.opponent_tableaus.keys())}")
 
         decision = "hit" if hand_value < 15 else "pass"
         self.logger.info(f"Decision: {decision}")
@@ -666,52 +488,24 @@ class MyBot(BaseBot):
 
 ### Common Issues
 
-**1. Bot Times Out**
-- Timeout is 5 seconds by default
-- Avoid expensive computations
-- Pre-calculate probabilities
-- Use lookup tables
+**Bot Times Out:** Default timeout is 5 seconds. Avoid expensive computations, use pre-calculated probabilities and lookup tables.
 
-**2. Bot Crashes**
-- Check all return types
-- Validate against compliance tests
-- Handle empty lists/dicts
-- Don't assume specific opponent count
+**Bot Crashes:** Check return types, validate against compliance tests, handle empty collections, don't assume specific opponent count.
 
-**3. Bot Makes Bad Decisions**
-- Add logging to see what it sees
-- Play as human against it
-- Review event logs
-- Test edge cases
+**Bad Decisions:** Add logging, test edge cases, review event logs.
 
-**4. Compliance Tests Fail**
-- Read error message carefully
-- Check return type (string vs bool vs player ID)
-- Ensure you handle all edge cases
-- Verify you're returning values from `eligible` list
+**Compliance Failures:** Check return type (string vs bool vs player ID), verify values from `eligible` list, handle edge cases.
 
 ### Replay Analysis
 
+Enable `SAVE_REPLAYS = True` in `tournament_config.py`:
+
 ```bash
-# Replay a specific game to see what happened
-uv run flip7 replay-game tournament_results/replays/game_001.jsonl
+# View event log
+cat tournament_results_head_to_head/replays/game_001.jsonl | jq
+
+# Replay with stepper
+uv run flip7-step MyBot RandomBot --seed 42
 ```
 
-This shows:
-- Every card drawn
-- Every decision made
-- Final scores
-- Who won and why
-
----
-
-## Next Steps
-
-1. **Build your bot** using the template
-2. **Pass compliance tests** (`pytest tests/test_bot_compliance.py -k YourBot`)
-3. **Test locally** against RandomBot and ConservativeBot
-4. **Run tournaments** with increasing game counts (5 → 50 → 500)
-5. **Analyze results** and iterate on strategy
-6. **Compete** in official tournaments
-
-Good luck!
+Event logs contain: every card drawn, every decision, all game state transitions, final scores and outcome.

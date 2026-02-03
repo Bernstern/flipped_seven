@@ -1,11 +1,16 @@
 """
 Sandbox execution environment for bots with timeout enforcement.
 
-This module provides timeout enforcement for bot decision-making using signal.alarm.
+This module provides timeout enforcement for bot decision-making using signal.setitimer.
 Bots that exceed their time limit will have a BotTimeout exception raised.
+
+PLATFORM COMPATIBILITY:
+    This module requires Unix/Linux signal support and will NOT work on Windows.
+    Use WSL (Windows Subsystem for Linux) if running on Windows.
 """
 
 import signal
+import sys
 from typing import Any, Callable, TypeVar
 
 from flip7.types.errors import BotTimeout
@@ -36,19 +41,19 @@ def execute_with_sandbox(
     """
     Execute a bot function with a timeout limit.
 
-    Uses signal.alarm to enforce a timeout on bot decision-making. If the bot
+    Uses signal.setitimer to enforce a timeout on bot decision-making. If the bot
     function does not return within the specified time limit, a BotTimeout
     exception is raised.
 
-    Note: This implementation uses signal.alarm which:
+    Note: This implementation uses signal.setitimer which:
     - Only works on Unix-like systems (Linux, macOS)
-    - Only supports integer second timeouts
+    - Supports subsecond precision (e.g., 0.25 seconds)
     - Cannot be used in multi-threaded programs
     - Uses SIGALRM signal
 
     Args:
         bot_name: The name of the bot (for error reporting)
-        timeout_seconds: Maximum time allowed in seconds (will be rounded up to int)
+        timeout_seconds: Maximum time allowed in seconds (supports subsecond precision)
         func: The function to execute
         *args: Arguments to pass to the function
 
@@ -57,23 +62,34 @@ def execute_with_sandbox(
 
     Raises:
         BotTimeout: If the function exceeds the time limit
+        RuntimeError: If running on an unsupported platform (Windows)
         Any other exception raised by the function
     """
-    # Convert timeout to integer seconds (round up)
-    timeout_int = int(timeout_seconds) if timeout_seconds == int(timeout_seconds) else int(timeout_seconds) + 1
+    # Check platform compatibility
+    if sys.platform.startswith('win'):
+        raise RuntimeError(
+            "Bot sandbox execution is not supported on Windows.\n\n"
+            "The timeout system uses Unix signal handling (signal.SIGALRM) which is not available on Windows.\n\n"
+            "Solutions:\n"
+            "  1. Use WSL (Windows Subsystem for Linux) - Recommended\n"
+            "     - Install WSL: https://docs.microsoft.com/en-us/windows/wsl/install\n"
+            "     - Run the tournament from within WSL\n\n"
+            "  2. Use a Linux virtual machine or Docker container\n\n"
+            "  3. Run on a Linux or macOS system"
+        )
 
     # Store the old signal handler to restore it later
     old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
 
     try:
-        # Set the alarm
-        signal.alarm(timeout_int)
+        # Set the timer with subsecond precision
+        signal.setitimer(signal.ITIMER_REAL, timeout_seconds)
 
         # Execute the function
         result = func(*args)
 
-        # Cancel the alarm if function completed in time
-        signal.alarm(0)
+        # Cancel the timer if function completed in time
+        signal.setitimer(signal.ITIMER_REAL, 0)
 
         return result
 
@@ -82,6 +98,6 @@ def execute_with_sandbox(
         raise BotTimeout(f"Bot '{bot_name}' exceeded time limit of {timeout_seconds}s")
 
     finally:
-        # Always cancel the alarm and restore the old handler
-        signal.alarm(0)
+        # Always cancel the timer and restore the old handler
+        signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, old_handler)
