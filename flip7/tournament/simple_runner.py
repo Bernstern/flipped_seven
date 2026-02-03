@@ -118,6 +118,7 @@ def run_simple_tournament(
                 event_log_path=event_log_path,
                 seed=game_seed,
                 bot_timeout=bot_timeout_seconds,
+                enable_logging=False,  # Disable logging for tournament performance
             )
 
             final_state = engine.execute_game()
@@ -154,17 +155,32 @@ def run_simple_tournament(
     import json
 
     results_file = output_dir / "tournament_results.json"
-    with open(results_file, "w") as f:
-        json.dump(
-            {
-                "tournament_name": tournament_name,
-                "total_games": num_games,
-                "players_per_game": players_per_game,
-                "bot_statistics": stats,
-            },
-            f,
-            indent=2,
+    try:
+        with open(results_file, "w") as f:
+            json.dump(
+                {
+                    "tournament_name": tournament_name,
+                    "total_games": num_games,
+                    "players_per_game": players_per_game,
+                    "bot_statistics": stats,
+                },
+                f,
+                indent=2,
+            )
+    except OSError as e:
+        console.print(
+            f"[red]Failed to save results to {results_file}[/red]\n"
+            f"[yellow]Error: {e}[/yellow]\n"
+            f"[yellow]Suggestion: Check that the directory exists and you have write permissions.[/yellow]"
         )
+        raise
+    except (TypeError, ValueError) as e:
+        console.print(
+            f"[red]Failed to serialize results to JSON[/red]\n"
+            f"[yellow]Error: {e}[/yellow]\n"
+            f"[yellow]Suggestion: Results contain non-serializable data. This is likely a bug.[/yellow]"
+        )
+        raise
 
     console.print(f"\n[green]Results saved to: {results_file}[/green]\n")
 

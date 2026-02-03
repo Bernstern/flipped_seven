@@ -1,79 +1,67 @@
 """Sample tournament configuration file.
 
-This file demonstrates how to configure a tournament for the Flip 7 CLI.
+This file demonstrates how to configure tournaments for the Flip 7 CLI.
 Use this as a template for your own tournament configurations.
 
-Usage:
-    flip7 run-tournament examples/sample_tournament_config.py
+Note: The main CLI (`uv run flip7`) uses tournament_config.py in the root directory.
+This example shows alternative configuration patterns you can use programmatically.
 """
 
-from flip7.bots.conservative_bot import ConservativeBot
-from flip7.bots.random_bot import RandomBot
+from pathlib import Path
+from flip7.bots import ConservativeBot, Hit17Bot, RandomBot
+from flip7.tournament.config import TournamentConfig
 
-# This is a placeholder for the actual TournamentConfig class
-# which will be implemented in the tournament module
-class TournamentConfig:
-    """Tournament configuration (placeholder).
-
-    In the actual implementation, this will be imported from
-    flip7.tournament.config and will include fields like:
-    - bots: List of bot classes to compete
-    - games_per_matchup: Number of games between each pair of bots
-    - players_per_game: Number of players in each game
-    - max_rounds: Maximum rounds per game before declaring a draw
-    - timeout_seconds: Time limit for bot decisions
-    """
-
-    def __init__(
-        self,
-        bots: list[type],
-        games_per_matchup: int = 5,
-        players_per_game: int = 2,
-        max_rounds: int = 100,
-        timeout_seconds: float = 1.0,
-    ):
-        self.bots = bots
-        self.games_per_matchup = games_per_matchup
-        self.players_per_game = players_per_game
-        self.max_rounds = max_rounds
-        self.timeout_seconds = timeout_seconds
-
-    def __repr__(self) -> str:
-        return (
-            f"TournamentConfig("
-            f"bots={[b.__name__ for b in self.bots]}, "
-            f"games_per_matchup={self.games_per_matchup}, "
-            f"players_per_game={self.players_per_game}, "
-            f"max_rounds={self.max_rounds}, "
-            f"timeout_seconds={self.timeout_seconds})"
-        )
-
-
-# Tournament configuration
-config = TournamentConfig(
-    bots=[
-        RandomBot,
-        ConservativeBot,
-    ],
-    games_per_matchup=5,
+# Example 1: Simple head-to-head configuration
+config_simple = TournamentConfig(
+    tournament_name="Simple Test",
     players_per_game=2,
-    max_rounds=100,
-    timeout_seconds=1.0,
+    best_of_n=5,
+    bot_classes=[RandomBot, ConservativeBot],
+    bot_timeout_seconds=1.0,
+    output_dir=Path("./tournament_results_simple"),
+    save_replays=False,
+    max_workers=None,  # Auto-detect CPU count
+    tournament_seed=42,
 )
 
-# You can also add multiple configurations if needed
+# Example 2: Quick test configuration (for development)
 config_quick = TournamentConfig(
-    bots=[RandomBot, ConservativeBot],
-    games_per_matchup=3,
+    tournament_name="Quick Test",
     players_per_game=2,
-    max_rounds=50,
-    timeout_seconds=0.5,
+    best_of_n=11,  # Small odd number for quick testing
+    bot_classes=[RandomBot, ConservativeBot],
+    bot_timeout_seconds=1.0,
+    output_dir=Path("./tournament_results_quick"),
+    save_replays=False,
+    max_workers=1,  # Single worker for debugging
+    tournament_seed=42,
 )
 
+# Example 3: Multiplayer configuration
 config_multiplayer = TournamentConfig(
-    bots=[RandomBot, RandomBot, ConservativeBot],
-    games_per_matchup=3,
-    players_per_game=3,
-    max_rounds=100,
-    timeout_seconds=1.0,
+    tournament_name="Multiplayer Test",
+    players_per_game=3,  # Three bots per game
+    best_of_n=101,  # Must be odd number
+    bot_classes=[RandomBot, ConservativeBot, Hit17Bot],
+    bot_timeout_seconds=1.0,
+    output_dir=Path("./tournament_results_multiplayer"),
+    save_replays=False,
+    max_workers=None,
+    tournament_seed=42,
 )
+
+# Example 4: Large tournament with replay saving (for analysis)
+config_with_replays = TournamentConfig(
+    tournament_name="Analysis Run",
+    players_per_game=2,
+    best_of_n=1001,  # Must be odd number
+    bot_classes=[RandomBot, ConservativeBot, Hit17Bot],
+    bot_timeout_seconds=1.0,
+    output_dir=Path("./tournament_results_analysis"),
+    save_replays=True,  # Enable replay saving for behavioral analysis
+    max_workers=None,
+    tournament_seed=42,
+)
+
+# Default config for programmatic use
+config = config_simple

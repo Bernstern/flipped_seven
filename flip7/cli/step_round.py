@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Standalone script to step through a round turn-by-turn for debugging.
+"""Command-line tool to step through a round turn-by-turn for debugging.
 
 Usage:
-    uv run python step_round.py [bot1_class] [bot2_class] [OPTIONS]
+    uv run flip7-step [bot1_class] [bot2_class] [OPTIONS]
 
 Examples:
     # Default: RandomBot vs ConservativeBot
-    uv run python step_round.py
+    uv run flip7-step
 
     # Specify bots
-    uv run python step_round.py RandomBot ConservativeBot
+    uv run flip7-step RandomBot ConservativeBot
 
     # With custom seed
-    uv run python step_round.py RandomBot ConservativeBot --seed 42
+    uv run flip7-step RandomBot ConservativeBot --seed 42
 
     # Simulate mid-game scenario (bot1 has 100 points, bot2 has 150 points, round 8)
-    uv run python step_round.py RandomBot ConservativeBot --scores 100,150 --round 8
+    uv run flip7-step RandomBot ConservativeBot --scores 100,150 --round 8
 
     # Custom bot from module
-    uv run python step_round.py my_bot.MyBot ConservativeBot
+    uv run flip7-step my_bot.MyBot ConservativeBot
 """
 
 import argparse
@@ -87,19 +87,19 @@ def main() -> None:
         epilog="""
 Examples:
   # Default: RandomBot vs ConservativeBot
-  uv run python step_round.py
+  uv run flip7-step
 
   # Specify bots
-  uv run python step_round.py RandomBot ConservativeBot
+  uv run flip7-step RandomBot ConservativeBot
 
   # With custom seed
-  uv run python step_round.py RandomBot ConservativeBot --seed 42
+  uv run flip7-step RandomBot ConservativeBot --seed 42
 
   # Simulate mid-game (bot1=100pts, bot2=150pts, round 8)
-  uv run python step_round.py RandomBot ConservativeBot --scores 100,150 --round 8
+  uv run flip7-step RandomBot ConservativeBot --scores 100,150 --round 8
 
   # Custom bot from module
-  uv run python step_round.py my_bot.MyBot ConservativeBot
+  uv run flip7-step my_bot.MyBot ConservativeBot
         """,
     )
 

@@ -4,7 +4,14 @@ This tournament runs 100,000+ matches to gather comprehensive statistics
 on bot performance and behavior patterns.
 
 Usage:
-    uv run flip7 run-tournament examples/large_tournament.py
+    1. Copy this file to tournament_config.py in the root directory:
+       cp examples/large_tournament.py tournament_config.py
+
+    2. Run the tournament:
+       uv run flip7
+
+Alternatively, you can use this configuration programmatically in your own scripts
+by importing the config object and passing it to the tournament runner.
 """
 
 from pathlib import Path
@@ -62,13 +69,17 @@ if __name__ == "__main__":
     print(f"Output: {config.output_dir}")
     print("=" * 80)
     print()
-    print("Run with: uv run flip7 run-tournament examples/large_tournament.py")
+    print("To run this configuration:")
+    print("  1. Copy to root: cp examples/large_tournament.py tournament_config.py")
+    print("  2. Run tournament: uv run flip7")
     print()
     print("Estimated time (8 workers):")
     print("  - ~2-5 seconds per game")
     print("  - 100,000 games / 8 workers = 12,500 games per worker")
     print("  - 12,500 * 3 seconds = ~10.5 hours")
     print()
-    print("After completion, analyze results with:")
-    print("  uv run python -m flip7.utils.tournament_analyzer tournament_results_100k/")
+    print("Note: For the dual-tournament system used by the CLI,")
+    print("      edit the root tournament_config.py and set:")
+    print("      GAMES_PER_MATCHUP_HEAD_TO_HEAD = 100_000")
+    print("      GAMES_PER_MATCHUP_ALL_VS_ALL = 1_000_000")
     print("=" * 80)

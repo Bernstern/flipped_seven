@@ -285,7 +285,19 @@ class RoundStepper:
         bot = self.bots[player_id]
         context = self._build_decision_context(player_id)
 
-        console.print(f"[yellow]Eligible targets: {', '.join(eligible_targets)}[/yellow]")
+        # Show context for action target decision
+        console.print()
+        self._show_decision_context(player_id, context)
+        console.print()
+
+        console.print("[bold cyan]action[/bold cyan] (ActionType):")
+        console.print(f"  ActionType.{card.action_type.name}")
+        console.print()
+
+        console.print("[bold cyan]eligible[/bold cyan] (list[str]):")
+        console.print(f"  {eligible_targets}")
+        console.print()
+
         console.print(f"[yellow]Asking {bot.name} to choose target...[/yellow]")
         self._wait_for_input()
 
@@ -318,6 +330,48 @@ class RoundStepper:
 
     def _handle_bust_interactive(self, player_id: str, duplicate: NumberCard) -> None:
         """Handle a bust by offering Second Chance."""
+        # Show decision context to user
+        self._display_second_chance_context(player_id, duplicate)
+
+        # Ask bot for decision
+        use_second_chance = self._ask_bot_second_chance(player_id, duplicate)
+
+        # Apply the decision
+        self._apply_second_chance_decision(player_id, use_second_chance)
+
+    def _display_second_chance_context(
+        self, player_id: str, duplicate: NumberCard
+    ) -> None:
+        """
+        Display the context for a Second Chance decision.
+
+        Args:
+            player_id: The ID of the player making the decision
+            duplicate: The duplicate card that caused the bust
+        """
+        context = self._build_decision_context(player_id)
+
+        console.print()
+        self._show_decision_context(player_id, context)
+        console.print()
+
+        console.print("[bold cyan]duplicate[/bold cyan] (NumberCard):")
+        console.print(f"  NumberCard({duplicate.value})")
+        console.print()
+
+    def _ask_bot_second_chance(
+        self, player_id: str, duplicate: NumberCard
+    ) -> bool:
+        """
+        Ask the bot whether to use Second Chance.
+
+        Args:
+            player_id: The ID of the player making the decision
+            duplicate: The duplicate card that caused the bust
+
+        Returns:
+            True if bot wants to use Second Chance, False otherwise
+        """
         bot = self.bots[player_id]
         context = self._build_decision_context(player_id)
 
@@ -336,7 +390,18 @@ class RoundStepper:
             use_second_chance = False
 
         console.print(f"[green]→ Decision: {'USE' if use_second_chance else 'DECLINE'}[/green]\n")
+        return use_second_chance
 
+    def _apply_second_chance_decision(
+        self, player_id: str, use_second_chance: bool
+    ) -> None:
+        """
+        Apply the bot's Second Chance decision to the game state.
+
+        Args:
+            player_id: The ID of the player
+            use_second_chance: Whether the bot chose to use Second Chance
+        """
         tableau = self.tableaus[player_id]
 
         if use_second_chance:
@@ -538,51 +603,79 @@ class RoundStepper:
 
     def _show_decision_context(self, player_id: str, context: BotDecisionContext) -> None:
         """Show complete decision context that the bot receives."""
-        table = Table(title="Decision Context (What the Bot Sees)", show_header=True, header_style="bold yellow")
-        table.add_column("Property", style="cyan", width=25)
-        table.add_column("Value", style="white")
+        console.rule("[bold yellow]RAW BOT DECISION CONTEXT[/bold yellow]", style="yellow")
+        console.print()
 
-        # My tableau info
+        # Show the actual BotDecisionContext structure
+        console.print("[bold cyan]context.my_tableau[/bold cyan] (PlayerTableau):")
+        self._print_raw_tableau(context.my_tableau, indent="  ")
+        console.print()
+
+        console.print("[bold cyan]context.opponent_tableaus[/bold cyan] (dict[str, PlayerTableau]):")
+        if context.opponent_tableaus:
+            for opp_id, opp_tableau in context.opponent_tableaus.items():
+                console.print(f"  [yellow]'{opp_id}'[/yellow]:")
+                self._print_raw_tableau(opp_tableau, indent="    ")
+                console.print()
+        else:
+            console.print("  [dim]{} (no opponents)[/dim]")
+            console.print()
+
+        console.print("[bold cyan]context.deck_remaining[/bold cyan] (int):")
+        console.print(f"  {context.deck_remaining}")
+        console.print()
+
+        console.print("[bold cyan]context.my_current_score[/bold cyan] (int):")
+        console.print(f"  {context.my_current_score}")
+        console.print()
+
+        console.print("[bold cyan]context.opponent_scores[/bold cyan] (dict[str, int]):")
+        if context.opponent_scores:
+            for opp_id, score in context.opponent_scores.items():
+                console.print(f"  [yellow]'{opp_id}'[/yellow]: {score}")
+        else:
+            console.print("  [dim]{} (no opponents)[/dim]")
+        console.print()
+
+        console.print("[bold cyan]context.current_round[/bold cyan] (int):")
+        console.print(f"  {context.current_round}")
+        console.print()
+
+        console.print("[bold cyan]context.target_score[/bold cyan] (int):")
+        console.print(f"  {context.target_score}")
+        console.print()
+
+        # Show helpful derived values
+        console.rule("[dim]Helpful Derived Values[/dim]", style="dim")
         my_numbers = [c.value for c in context.my_tableau.number_cards]
         hand_value = sum(my_numbers)
-        unique_numbers = len(set(my_numbers))
-        my_modifiers = [c.modifier for c in context.my_tableau.modifier_cards]
+        unique_count = len(set(my_numbers))
 
-        table.add_row("[bold]My Tableau[/bold]", "")
-        table.add_row("  Hand Value", str(hand_value))
-        table.add_row("  Unique Numbers", f"{unique_numbers}/7")
-        table.add_row("  Number Cards", ", ".join(map(str, my_numbers)) if my_numbers else "None")
-        table.add_row("  Modifier Cards", ", ".join(my_modifiers) if my_modifiers else "None")
-        table.add_row("  Has Second Chance", "Yes" if context.my_tableau.second_chance else "No")
+        console.print(f"  [dim]Hand value: sum(card.value for card in context.my_tableau.number_cards) = {hand_value}[/dim]")
+        console.print(f"  [dim]Unique count: len(set(card.value for card in context.my_tableau.number_cards)) = {unique_count}[/dim]")
+        console.print()
 
-        # Opponent info
-        table.add_row("[bold]Opponents[/bold]", "")
-        for opp_id, opp_tableau in context.opponent_tableaus.items():
-            opp_numbers = [c.value for c in opp_tableau.number_cards]
-            opp_hand_value = sum(opp_numbers)
-            opp_unique = len(set(opp_numbers))
-            opp_status = []
-            if opp_tableau.is_busted:
-                opp_status.append("BUSTED")
-            elif opp_tableau.is_frozen:
-                opp_status.append("FROZEN")
-            elif opp_tableau.is_passed:
-                opp_status.append("PASSED")
-            elif opp_tableau.is_active:
-                opp_status.append("ACTIVE")
-            status_str = " ".join(opp_status) if opp_status else "Inactive"
-            table.add_row(f"  {opp_id}", f"Value: {opp_hand_value}, Unique: {opp_unique}, {status_str}")
+    def _print_raw_tableau(self, tableau: PlayerTableau, indent: str = "") -> None:
+        """Print a PlayerTableau object showing its raw structure."""
+        console.print(f"{indent}[yellow]player_id[/yellow]: '{tableau.player_id}'")
 
-        # Game state
-        table.add_row("[bold]Game State[/bold]", "")
-        table.add_row("  Cards Remaining in Deck", str(context.deck_remaining))
-        table.add_row("  Current Round", str(context.current_round))
-        table.add_row("  Target Score", str(context.target_score))
+        # Number cards
+        if tableau.number_cards:
+            numbers_repr = ", ".join(f"NumberCard({c.value})" for c in tableau.number_cards)
+            console.print(f"{indent}[yellow]number_cards[/yellow]: ({numbers_repr})")
+        else:
+            console.print(f"{indent}[yellow]number_cards[/yellow]: ()")
 
-        # Scores (cumulative across rounds)
-        table.add_row("[bold]Cumulative Scores[/bold]", "")
-        table.add_row(f"  My Score ({player_id})", str(context.my_current_score))
-        for opp_id, opp_score in context.opponent_scores.items():
-            table.add_row(f"  {opp_id}", str(opp_score))
+        # Modifier cards
+        if tableau.modifier_cards:
+            mods_repr = ", ".join(f"ModifierCard('{c.modifier}')" for c in tableau.modifier_cards)
+            console.print(f"{indent}[yellow]modifier_cards[/yellow]: ({mods_repr})")
+        else:
+            console.print(f"{indent}[yellow]modifier_cards[/yellow]: ()")
 
-        console.print(table)
+        # Boolean flags
+        console.print(f"{indent}[yellow]second_chance[/yellow]: {tableau.second_chance}")
+        console.print(f"{indent}[yellow]is_active[/yellow]: {tableau.is_active}")
+        console.print(f"{indent}[yellow]is_busted[/yellow]: {tableau.is_busted}")
+        console.print(f"{indent}[yellow]is_frozen[/yellow]: {tableau.is_frozen}")
+        console.print(f"{indent}[yellow]is_passed[/yellow]: {tableau.is_passed}")

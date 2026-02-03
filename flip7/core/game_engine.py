@@ -44,7 +44,7 @@ from pathlib import Path
 from flip7.constants import WINNING_SCORE
 from flip7.core.deck import create_deck, shuffle_deck
 from flip7.core.round_engine import RoundEngine
-from flip7.events.event_logger import EventLogger
+from flip7.events.event_logger import EventLogger, NullEventLogger
 from flip7.types.bot_interface import Bot
 from flip7.types.cards import Card
 from flip7.types.events import Event
@@ -82,7 +82,8 @@ class GameEngine:
         bots: dict[str, Bot],
         event_log_path: Path,
         seed: int | None = None,
-        bot_timeout: float = 5.0
+        bot_timeout: float = 5.0,
+        enable_logging: bool = True
     ) -> None:
         """
         Initialize the game engine.
@@ -94,6 +95,8 @@ class GameEngine:
             event_log_path: Path to event log file
             seed: Optional random seed for deterministic gameplay
             bot_timeout: Timeout in seconds for bot decisions (default: 5.0)
+            enable_logging: Whether to log events to file (default: True)
+                           Set to False for tournaments to improve performance
 
         Raises:
             ValueError: If player_ids is empty or if bots dict doesn't contain
@@ -111,6 +114,7 @@ class GameEngine:
         self.event_log_path = event_log_path
         self.seed = seed
         self.bot_timeout = bot_timeout
+        self.enable_logging = enable_logging
 
         # Initialize persistent deck and discard pile (shared across all rounds)
         self.deck: list[Card] = shuffle_deck(create_deck(), seed=seed)
@@ -275,8 +279,10 @@ class GameEngine:
         if self.game_state.is_complete:
             raise RuntimeError("Game has already been completed")
 
-        # Use EventLogger as context manager for proper resource management
-        with EventLogger(self.event_log_path) as event_logger:
+        # Use EventLogger or NullEventLogger based on enable_logging flag
+        logger = EventLogger(self.event_log_path) if self.enable_logging else NullEventLogger()
+
+        with logger as event_logger:
             # Log game started event
             self._log_game_started(event_logger)
 

@@ -10,6 +10,8 @@ dependencies = [
 
 [project.scripts]
 flip7 = "flip7.cli.main:cli"
+flip7-step = "flip7.cli.step_round:main"
+flip7-demo = "flip7.cli.demo:main"
 
 [project.optional-dependencies]
 dev = [

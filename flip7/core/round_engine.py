@@ -215,15 +215,33 @@ class RoundEngine:
         Args:
             player_id: The ID of the player taking their turn
         """
+        decision = self._get_bot_decision(player_id)
+
+        if decision is None:
+            # Bot timed out - already handled
+            return
+
+        if decision == "pass":
+            self._handle_pass(player_id)
+        else:
+            self._handle_hit(player_id)
+
+    def _get_bot_decision(self, player_id: str) -> str | None:
+        """
+        Get the bot's decision to hit or pass.
+
+        Args:
+            player_id: The ID of the player making the decision
+
+        Returns:
+            "hit" or "pass", or None if bot timed out
+        """
         bot = self.bots[player_id]
         tableau = self.tableaus[player_id]
-
-        # Build decision context
         context = self._build_decision_context(player_id)
 
-        # Ask bot to decide: hit or pass
         try:
-            decision = execute_with_sandbox(
+            return execute_with_sandbox(
                 bot.name,
                 self.bot_timeout,
                 bot.decide_hit_or_pass,
@@ -241,27 +259,44 @@ class RoundEngine:
                 is_active=False,
                 is_busted=True,
             )
-            return
+            return None
 
-        if decision == "pass":
-            # Player passes - lock in their score
-            self._log_event("player_passed", player_id=player_id)
-            self.tableaus[player_id] = replace(
-                tableau,
-                is_active=False,
-                is_passed=True,
-            )
-        else:
-            # Player hits - draw a card
-            card = self._draw_card(player_id)
+    def _handle_pass(self, player_id: str) -> None:
+        """
+        Handle a player passing their turn.
 
-            # Handle the drawn card
-            if isinstance(card, ActionCard):
-                self._handle_action_card(player_id, card)
-            elif isinstance(card, NumberCard):
-                self._handle_number_card(player_id, card)
-            elif isinstance(card, ModifierCard):
-                self._handle_modifier_card(player_id, card)
+        The player locks in their current score and becomes inactive.
+
+        Args:
+            player_id: The ID of the player passing
+        """
+        tableau = self.tableaus[player_id]
+
+        self._log_event("player_passed", player_id=player_id)
+        self.tableaus[player_id] = replace(
+            tableau,
+            is_active=False,
+            is_passed=True,
+        )
+
+    def _handle_hit(self, player_id: str) -> None:
+        """
+        Handle a player hitting (drawing a card).
+
+        Draws a card and processes it based on its type.
+
+        Args:
+            player_id: The ID of the player hitting
+        """
+        card = self._draw_card(player_id)
+
+        # Handle the drawn card based on its type
+        if isinstance(card, ActionCard):
+            self._handle_action_card(player_id, card)
+        elif isinstance(card, NumberCard):
+            self._handle_number_card(player_id, card)
+        elif isinstance(card, ModifierCard):
+            self._handle_modifier_card(player_id, card)
 
     def _draw_card(self, player_id: str) -> Card:
         """
@@ -498,56 +533,145 @@ class RoundEngine:
             player_id=player_id,
         )
 
-        tableau = self.tableaus[player_id]
-
         # Queue for Flip Three/Freeze action cards drawn during Flip Three
         queued_action_cards: list[ActionCard] = []
 
         # Draw 3 cards (or until bust/Flip 7)
+        self._draw_flip_three_cards(player_id, queued_action_cards)
+
+        # Resolve queued action cards AFTER all 3 cards are drawn
+        self._resolve_queued_action_cards(player_id, queued_action_cards)
+
+    def _draw_flip_three_cards(
+        self, player_id: str, queued_action_cards: list[ActionCard]
+    ) -> None:
+        """
+        Draw up to 3 cards for Flip Three effect.
+
+        Handles each card type appropriately and queues Flip Three/Freeze cards
+        for later resolution. Stops early if player busts or achieves Flip 7.
+
+        Args:
+            player_id: The ID of the player drawing cards
+            queued_action_cards: List to accumulate Flip Three/Freeze cards for later
+        """
         for i in range(3):
             # Check if player is still active (might have busted or achieved Flip 7)
-            current_tableau = self.tableaus[player_id]
-            if not current_tableau.is_active:
+            if not self._is_player_active(player_id):
                 break
 
             # Draw a card
             card = self._draw_card(player_id)
 
             # Handle the card based on its type
-            if isinstance(card, ActionCard):
-                # Special handling: Second Chance resolved immediately,
-                # Flip Three/Freeze queued for later
-                if card.action_type == ActionType.SECOND_CHANCE:
-                    # Resolve Second Chance immediately (can be used if needed)
-                    self._handle_action_card(player_id, card)
-                else:
-                    # Queue Flip Three/Freeze to resolve AFTER all 3 cards
-                    queued_action_cards.append(card)
-                    self._log_event(
-                        "action_card_drawn",
-                        player_id=player_id,
-                        data={"action": card.action_type.value, "queued": True},
-                    )
-            elif isinstance(card, NumberCard):
-                self._handle_number_card(player_id, card)
-            elif isinstance(card, ModifierCard):
-                self._handle_modifier_card(player_id, card)
+            self._handle_flip_three_card(player_id, card, queued_action_cards)
 
             # Check again if player is still active after handling the card
-            if not self.tableaus[player_id].is_active:
+            if not self._is_player_active(player_id):
                 break
 
-        # Resolve queued action cards AFTER all 3 cards are drawn
-        # (only if player hasn't busted)
-        if not self.tableaus[player_id].is_busted and queued_action_cards:
-            for action_card in queued_action_cards:
-                # Only resolve if player is still active
-                if not self.tableaus[player_id].is_active:
-                    # Player became inactive, discard remaining queued cards
-                    for remaining_card in queued_action_cards[queued_action_cards.index(action_card):]:
-                        self.discard_pile.append(remaining_card)
-                    break
-                self._handle_action_card(player_id, action_card)
+    def _handle_flip_three_card(
+        self, player_id: str, card: Card, queued_action_cards: list[ActionCard]
+    ) -> None:
+        """
+        Handle a single card drawn during Flip Three.
+
+        Action cards have special handling:
+        - Second Chance is resolved immediately
+        - Flip Three/Freeze are queued for later resolution
+
+        Args:
+            player_id: The ID of the player who drew the card
+            card: The card that was drawn
+            queued_action_cards: List to accumulate queued action cards
+        """
+        if isinstance(card, ActionCard):
+            self._handle_flip_three_action_card(player_id, card, queued_action_cards)
+        elif isinstance(card, NumberCard):
+            self._handle_number_card(player_id, card)
+        elif isinstance(card, ModifierCard):
+            self._handle_modifier_card(player_id, card)
+
+    def _handle_flip_three_action_card(
+        self, player_id: str, card: ActionCard, queued_action_cards: list[ActionCard]
+    ) -> None:
+        """
+        Handle an action card drawn during Flip Three.
+
+        Second Chance cards are resolved immediately. Flip Three and Freeze cards
+        are queued to be resolved after all 3 cards are drawn.
+
+        Args:
+            player_id: The ID of the player who drew the card
+            card: The action card that was drawn
+            queued_action_cards: List to accumulate queued action cards
+        """
+        if card.action_type == ActionType.SECOND_CHANCE:
+            # Resolve Second Chance immediately (can be used if needed)
+            self._handle_action_card(player_id, card)
+        else:
+            # Queue Flip Three/Freeze to resolve AFTER all 3 cards
+            queued_action_cards.append(card)
+            self._log_event(
+                "action_card_drawn",
+                player_id=player_id,
+                data={"action": card.action_type.value, "queued": True},
+            )
+
+    def _resolve_queued_action_cards(
+        self, player_id: str, queued_action_cards: list[ActionCard]
+    ) -> None:
+        """
+        Resolve action cards that were queued during Flip Three.
+
+        Only resolves if player hasn't busted. Stops resolving if player
+        becomes inactive and discards remaining queued cards.
+
+        Args:
+            player_id: The ID of the player whose queued cards to resolve
+            queued_action_cards: List of action cards to resolve
+        """
+        # Only resolve if player hasn't busted and has queued cards
+        if self.tableaus[player_id].is_busted or not queued_action_cards:
+            return
+
+        for action_card in queued_action_cards:
+            # Only resolve if player is still active
+            if not self._is_player_active(player_id):
+                # Player became inactive, discard remaining queued cards
+                self._discard_remaining_queued_cards(
+                    queued_action_cards, action_card
+                )
+                break
+            self._handle_action_card(player_id, action_card)
+
+    def _is_player_active(self, player_id: str) -> bool:
+        """
+        Check if a player is still active.
+
+        Args:
+            player_id: The ID of the player to check
+
+        Returns:
+            True if the player is active, False otherwise
+        """
+        return self.tableaus[player_id].is_active
+
+    def _discard_remaining_queued_cards(
+        self, queued_action_cards: list[ActionCard], current_card: ActionCard
+    ) -> None:
+        """
+        Discard all remaining queued action cards starting from the current card.
+
+        Called when a player becomes inactive before all queued cards are resolved.
+
+        Args:
+            queued_action_cards: The full list of queued action cards
+            current_card: The card that couldn't be resolved (and where to start discarding)
+        """
+        start_index = queued_action_cards.index(current_card)
+        for remaining_card in queued_action_cards[start_index:]:
+            self.discard_pile.append(remaining_card)
 
     def _resolve_second_chance(self, player_id: str) -> None:
         """
@@ -638,13 +762,31 @@ class RoundEngine:
             player_id: The ID of the player who would bust
             duplicate: The duplicate number card that caused the bust
         """
-        tableau = self.tableaus[player_id]
+        use_second_chance = self._ask_bot_to_use_second_chance(player_id, duplicate)
+
+        if use_second_chance:
+            self._apply_second_chance(player_id, duplicate)
+        else:
+            self._apply_bust(player_id, duplicate)
+
+    def _ask_bot_to_use_second_chance(
+        self, player_id: str, duplicate: NumberCard
+    ) -> bool:
+        """
+        Ask the bot if they want to use their Second Chance card.
+
+        Args:
+            player_id: The ID of the player who would bust
+            duplicate: The duplicate number card that caused the bust
+
+        Returns:
+            True if the bot wants to use Second Chance, False otherwise
+        """
         bot = self.bots[player_id]
         context = self._build_decision_context(player_id)
 
-        # Ask bot if they want to use Second Chance
         try:
-            use_second_chance = execute_with_sandbox(
+            return execute_with_sandbox(
                 bot.name,
                 self.bot_timeout,
                 bot.decide_use_second_chance,
@@ -652,39 +794,61 @@ class RoundEngine:
                 duplicate,
             )
         except BotTimeout:
-            # Bot timed out - treat as bust
-            use_second_chance = False
+            # Bot timed out - treat as declining Second Chance
+            return False
 
-        if use_second_chance:
-            # Use Second Chance - discard the duplicate card (which was never added to tableau)
-            # and remove Second Chance
-            # Keep all original cards - the duplicate was detected but never added
-            self.tableaus[player_id] = replace(
-                tableau,
-                number_cards=tableau.number_cards,  # Keep original cards unchanged
-                second_chance=False,
-                is_active=False,  # Turn ends immediately
-                is_passed=True,   # Count as passed (not busted)
-            )
+    def _apply_second_chance(self, player_id: str, duplicate: NumberCard) -> None:
+        """
+        Apply Second Chance to avoid a bust.
 
-            self._log_event(
-                "second_chance_used",
-                player_id=player_id,
-                data={"duplicate": duplicate},
-            )
-        else:
-            # Bust normally
-            self._log_event(
-                "player_busted",
-                player_id=player_id,
-                data={"duplicate": duplicate},
-            )
+        The duplicate card is discarded and the player's turn ends with a pass.
 
-            self.tableaus[player_id] = replace(
-                tableau,
-                is_active=False,
-                is_busted=True,
-            )
+        Args:
+            player_id: The ID of the player using Second Chance
+            duplicate: The duplicate card that was discarded
+        """
+        tableau = self.tableaus[player_id]
+
+        # Use Second Chance - discard the duplicate card (which was never added to tableau)
+        # and remove Second Chance
+        # Keep all original cards - the duplicate was detected but never added
+        self.tableaus[player_id] = replace(
+            tableau,
+            number_cards=tableau.number_cards,  # Keep original cards unchanged
+            second_chance=False,
+            is_active=False,  # Turn ends immediately
+            is_passed=True,   # Count as passed (not busted)
+        )
+
+        self._log_event(
+            "second_chance_used",
+            player_id=player_id,
+            data={"duplicate": duplicate},
+        )
+
+    def _apply_bust(self, player_id: str, duplicate: NumberCard) -> None:
+        """
+        Apply bust status to a player.
+
+        The player becomes inactive and is marked as busted.
+
+        Args:
+            player_id: The ID of the player who busted
+            duplicate: The duplicate card that caused the bust
+        """
+        tableau = self.tableaus[player_id]
+
+        self._log_event(
+            "player_busted",
+            player_id=player_id,
+            data={"duplicate": duplicate},
+        )
+
+        self.tableaus[player_id] = replace(
+            tableau,
+            is_active=False,
+            is_busted=True,
+        )
 
     def _check_flip_7(self, tableau: PlayerTableau) -> bool:
         """

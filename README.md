@@ -1,53 +1,32 @@
 # Flip 7 Tournament Harness
 
-A strongly-typed, event-sourced Python implementation of Flip 7 for bot development and testing.
+Strongly-typed, event-sourced Python implementation of Flip 7 for bot development and testing.
 
 ## Overview
 
-Flip 7 is a card game where players draw numbered cards (0-12), modifiers (X2, +2/+4/+6/+8/+10), and action cards (Freeze, Flip Three, Second Chance) trying to reach exactly 7 unique number cards for bonus points without busting (drawing duplicates). First player to 200 points wins.
+Flip 7: Draw numbered cards (0-12), modifiers (X2, +2/+4/+6/+8/+10), and action cards (Freeze, Flip Three, Second Chance). Goal: reach exactly 7 unique number cards for bonus points without busting (drawing duplicates). First to 200 points wins.
+
+## CLI Tools
+
+- `flip7` - Full tournament (head-to-head + all-vs-all)
+- `flip7-step` - Interactive round debugger
+- `flip7-demo` - Quick demo game
+- `flip7-results <file>` - Display tournament results
 
 ## Installation
+
+**Platform Requirement:** Requires Unix signals for bot sandboxing. Windows users must use WSL.
 
 ```bash
 cd flipped_seven
 uv sync --all-extras
 ```
 
-## Usage
+## Quick Start
 
-### 1. Edit tournament_config.py
+### 1. Create Your Bot
 
-```python
-# Set number of games to run
-NUM_GAMES = 1000  # 100, 1000, 10000, or 100000
-
-# Add your bots
-BOT_CLASSES = [
-    RandomBot,
-    ConservativeBot,
-    MyBot,  # Your custom bot
-]
-
-# Enable detailed analysis (slower, uses disk space)
-SAVE_REPLAYS = False  # Set True for behavioral analysis
-```
-
-### 2. Run Tournament
-
-```bash
-uv run flip7
-```
-
-That's it! The tournament will:
-- Run NUM_GAMES sequentially
-- Cycle through all bot matchups
-- Show progress bar with time remaining
-- Display final standings
-- Auto-analyze behavior (if SAVE_REPLAYS=True)
-
-## Creating Your Own Bot
-
-Create `my_bot.py`:
+Create `flip7/bots/my_bot.py` (auto-discovered):
 
 ```python
 from flip7.bots.base import BaseBot
@@ -60,114 +39,123 @@ class MyBot(BaseBot):
     """My custom strategy bot."""
 
     def decide_hit_or_pass(self, context: BotDecisionContext) -> Literal["hit", "pass"]:
-        # Your strategy here
         hand_value = sum(c.value for c in context.my_tableau.number_cards)
         return "pass" if hand_value >= 15 else "hit"
 
     def decide_use_second_chance(
         self, context: BotDecisionContext, duplicate: NumberCard
     ) -> bool:
-        return True  # Always avoid busting
+        return True
 
     def choose_action_target(
         self, context: BotDecisionContext,
         action: ActionType,
         eligible: list[str]
     ) -> str:
-        # Target player with highest score
         return max(eligible, key=lambda p: context.opponent_scores.get(p, 0))
 ```
 
-Add to `tournament_config.py`:
+**Note:** Bot files must be in `flip7/bots/` directory.
+
+### 2. (Optional) Configure Tournament
+
+Edit `tournament_config.py`:
 
 ```python
-from flip7.bots.my_bot import MyBot
-
-BOT_CLASSES = [RandomBot, ConservativeBot, MyBot]
+GAMES_PER_MATCHUP_HEAD_TO_HEAD = 100_000  # 2-player matchups
+GAMES_PER_MATCHUP_ALL_VS_ALL = 1_000_000  # All bots together
+SAVE_REPLAYS = False  # Set True for detailed analysis (slower, disk-intensive)
 ```
 
-Run:
+### 3. Run Tournament
 
 ```bash
 uv run flip7
 ```
 
-## Debugging Your Bot
+Executes two tournaments:
+- Head-to-head (2-player direct matchups)
+- All-vs-all (all bots per game)
+- Displays progress bars and final standings
+- Saves results to separate directories
+
+## Debugging
 
 ### Interactive Round Stepper
 
-Step through a single round turn-by-turn to see exactly what your bot is doing:
-
 ```bash
 # Default: RandomBot vs ConservativeBot
-uv run python step_round.py
+uv run flip7-step
 
 # Test your bot
-uv run python step_round.py my_bot.MyBot ConservativeBot
+uv run flip7-step my_bot.MyBot ConservativeBot
 
-# With specific seed for reproducibility
-uv run python step_round.py RandomBot ConservativeBot --seed 42
+# With seed for reproducibility
+uv run flip7-step RandomBot ConservativeBot --seed 42
 ```
 
-The stepper pauses at each decision point and shows:
-- **Game State**: All player tableaus with cards and status
-- **Decision Context**: Hand value, unique numbers, cards remaining
-- **Bot Decisions**: What the bot decided (hit/pass) and why
-- **Card Effects**: What card was drawn and what happened
-- **Action Cards**: Target selection for Freeze/Flip Three/Second Chance
-- **Bust Detection**: Duplicate detection and Second Chance usage
-- **Score Breakdown**: Detailed score calculation at the end
+Shows at each decision point:
+- Game state (all player tableaus)
+- Decision context (hand value, unique numbers, cards remaining)
+- Bot decisions and rationale
+- Card effects and outcomes
+- Action card targeting
+- Bust detection and Second Chance usage
+- Score breakdown
 
-Press Enter to advance through each turn. This is the best way to understand exactly what your bot is doing and debug edge cases!
-
-See [DEBUGGING.md](DEBUGGING.md) for a complete debugging guide with examples and tips.
+See [DEBUGGING.md](DEBUGGING.md) for complete guide.
 
 ## Bot Decision Context
 
-Your bot receives full game state:
-
+Available game state:
 - `context.my_tableau` - Your cards and status
 - `context.opponent_tableaus` - All opponents' cards
 - `context.deck_remaining` - Cards left in deck
 - `context.my_current_score` - Your cumulative score
 - `context.opponent_scores` - Opponents' cumulative scores
-- `context.current_round` - Which round number
+- `context.current_round` - Round number
 - `context.target_score` - Score needed to win (200)
+
+## Tournament Structure
+
+### 1. Head-to-Head (2-Player)
+- Round-robin: every bot vs every other bot
+- Games per matchup: `GAMES_PER_MATCHUP_HEAD_TO_HEAD` (default: 100,000)
+- Output: `OUTPUT_DIR_HEAD_TO_HEAD/tournament_results.json`
+- Shows overall standings + win/loss matrix
+
+### 2. All-vs-All (Multiplayer)
+- All bots compete simultaneously
+- Total games: `GAMES_PER_MATCHUP_ALL_VS_ALL` (default: 1,000,000)
+- Output: `OUTPUT_DIR_ALL_VS_ALL/tournament_results.json`
+- Shows multiplayer dynamics performance
+
+**Purpose:** Head-to-head reveals direct matchup strengths; all-vs-all shows multiplayer behavior.
 
 ## Tournament Configuration
 
 Edit `tournament_config.py`:
 
 ```python
-# Games to run
-NUM_GAMES = 1000  # Quick: 100, Medium: 1000, Large: 10000, Massive: 100000
-
-# Players per game
-PLAYERS_PER_GAME = 2  # 2, 3, or 4
-
-# Bots to test
-BOT_CLASSES = [RandomBot, ConservativeBot, MyBot]
-
-# Analysis
-SAVE_REPLAYS = False  # True = detailed behavior analysis (slower, uses disk)
-
-# Output
-OUTPUT_DIR = Path("./tournament_results")
-TOURNAMENT_SEED = 42  # For reproducibility
+GAMES_PER_MATCHUP_HEAD_TO_HEAD = 100_000
+GAMES_PER_MATCHUP_ALL_VS_ALL = 1_000_000
+BOT_TIMEOUT_SECONDS = 1.0
+SAVE_REPLAYS = False  # True = detailed analysis (slower, disk-intensive)
+OUTPUT_DIR_HEAD_TO_HEAD = Path("./tournament_results_head_to_head")
+OUTPUT_DIR_ALL_VS_ALL = Path("./tournament_results_all_vs_all")
+TOURNAMENT_SEED = 42  # Reproducibility
 ```
 
 ## Behavioral Analysis
 
-Set `SAVE_REPLAYS = True` in config, then run tournament.
-
-Analysis automatically shows:
+Set `SAVE_REPLAYS = True` in config. Auto-generated analysis includes:
 
 **Overall Performance**
-- Win rates and average scores
-- Rounds played and won
+- Win rates, average scores
+- Rounds played/won
 
 **Decision Patterns**
-- Hit vs pass percentages
+- Hit/pass percentages
 - Average hand value when passing
 
 **Risk Behavior**
@@ -179,35 +167,45 @@ Analysis automatically shows:
 - Flip 7 achievement rates
 - Action card usage patterns
 
-## Examples
+## Reference Bots
 
-### Quick Test (100 games)
+- **RandomBot**: Random decisions (baseline)
+- **ConservativeBot**: Passes at 15+ points
+- **Hit17Bot**: Hits until 17 (Blackjack-style)
+
+Sample results (100 games head-to-head):
+
+| Rank | Bot | Win Rate | Avg Score |
+|------|-----|----------|-----------|
+| 1 | Hit17Bot | 75.0% | 202.2 |
+| 2 | ConservativeBot | 60.0% | 191.2 |
+| 3 | RandomBot | 15.0% | 145.4 |
+
+## Configuration Examples
+
+### Quick Test
 ```python
-NUM_GAMES = 100
+GAMES_PER_MATCHUP_HEAD_TO_HEAD = 100
+GAMES_PER_MATCHUP_ALL_VS_ALL = 100
 SAVE_REPLAYS = False
 ```
-Run time: ~2-3 minutes
+Runtime: ~few minutes
 
-### Medium Test (1,000 games)
+### Medium Analysis
 ```python
-NUM_GAMES = 1000
+GAMES_PER_MATCHUP_HEAD_TO_HEAD = 10_000
+GAMES_PER_MATCHUP_ALL_VS_ALL = 10_000
 SAVE_REPLAYS = False
 ```
-Run time: ~20-30 minutes
+Runtime: ~1-2 hours
 
-### Large Scale (10,000 games)
+### Production Scale
 ```python
-NUM_GAMES = 10000
+GAMES_PER_MATCHUP_HEAD_TO_HEAD = 100_000
+GAMES_PER_MATCHUP_ALL_VS_ALL = 1_000_000
 SAVE_REPLAYS = False
 ```
-Run time: ~3-5 hours
-
-### Massive Scale (100,000 games)
-```python
-NUM_GAMES = 100000
-SAVE_REPLAYS = False  # Don't save replays (too much disk space)
-```
-Run time: ~30-50 hours (1-2 days)
+Runtime: ~30-50 hours
 
 ## Development
 
@@ -226,14 +224,52 @@ uv run pytest
 uvx ruff format flip7/
 ```
 
-## Bot Development Tips
+## Bot Development Workflow
 
-1. **Start Simple** - Basic threshold strategy first
-2. **Test Small** - Run 100 games initially
-3. **Scale Up** - 1000 → 10000 → 100000
-4. **Analyze** - Use SAVE_REPLAYS=True on smaller runs
-5. **Iterate** - Adjust based on behavioral patterns
-6. **Think Strategic** - Early vs late game, ahead vs behind
+1. Start with basic threshold strategy
+2. Test with 100 games
+3. Scale: 1000 → 10000 → 100000
+4. Use SAVE_REPLAYS=True on smaller runs
+5. Adjust based on behavioral patterns
+6. Consider early/late game and ahead/behind scenarios
+
+## Troubleshooting
+
+**Bot Not Found**
+- Ensure bot file is in `flip7/bots/` directory
+- Built-in bots: `RandomBot`, `ConservativeBot`, `Hit17Bot`
+- Custom bots: Use `module.ClassName` format (e.g., `my_bot.MyBot`)
+
+**Bot Timeout**
+- Default timeout: 1 second
+- Avoid expensive computations in decision methods
+- Pre-calculate probabilities or use lookup tables
+
+**Import Errors**
+- Use `uv run` prefix for all commands
+- Run `uv sync --all-extras` to reinstall
+
+**Tournament Doesn't Find Bot**
+- File must be named `*_bot.py`
+- Class must inherit from `BaseBot`
+- File must be in `flip7/bots/` directory
+
+**Compliance Tests Fail**
+- Return types: `"hit"` or `"pass"` (strings), not booleans
+- Second Chance: Return boolean, not string
+- Action targets: Must return player ID from `eligible` list
+- Run: `uv run pytest tests/test_bot_compliance.py -v -k YourBotName`
+
+**No Output/Progress**
+- Large tournaments take hours
+- Reduce game counts in `tournament_config.py` for testing
+- Check for infinite loops in bot logic
+- Monitor progress bars
+
+**Further Help**
+- [DEBUGGING.md](DEBUGGING.md) - Detailed debugging guide
+- [BUILDING_A_BOT.md](BUILDING_A_BOT.md) - Bot development guide
+- Use `--help`: `uv run flip7 --help`, `uv run flip7-step --help`
 
 ## Game Rules
 
@@ -241,14 +277,14 @@ See [RULES.md](RULES.md) for complete rules.
 
 ## Architecture
 
-- **`flip7/constants.py`** - Game rules (immutable)
-- **`flip7/types/`** - Type definitions (frozen dataclasses)
-- **`flip7/core/`** - Game engine
-- **`flip7/events/`** - Event sourcing
-- **`flip7/bots/`** - Bot implementations
-- **`flip7/tournament/`** - Tournament system
-- **`flip7/utils/`** - Analysis tools
-- **`flip7/cli/`** - CLI
+- `flip7/constants.py` - Game rules (immutable)
+- `flip7/types/` - Type definitions (frozen dataclasses)
+- `flip7/core/` - Game engine
+- `flip7/events/` - Event sourcing
+- `flip7/bots/` - Bot implementations
+- `flip7/tournament/` - Tournament system
+- `flip7/utils/` - Analysis tools
+- `flip7/cli/` - CLI
 
 ## License
 
