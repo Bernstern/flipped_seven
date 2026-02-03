@@ -125,4 +125,10 @@ dmypy.json
 # Project-specific
 results/
 tournament_results/
+demo_results/
+quick_game_results/
+*_results/
 **/*.jsonl
+*.bak
+show_bot_context.py
+example_bot_with_context.py

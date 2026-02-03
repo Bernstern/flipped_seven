@@ -473,13 +473,22 @@ class RoundEngine:
 
     def _resolve_flip_three(self, player_id: str) -> None:
         """
-        Apply Flip Three effect: player draws 3 cards recursively.
+        Apply Flip Three effect: player draws 3 cards with special action card handling.
 
         The target player draws 3 cards, handling each card as normal:
         - Number cards may cause busts
-        - Action cards are resolved recursively
+        - Second Chance cards are resolved immediately (drawer chooses target;
+          if no eligible targets exist because everyone already has one, discard it)
+        - Flip Three/Freeze cards are QUEUED and resolved AFTER all 3 cards are drawn
         - Modifier cards are added to tableau
         - Stop early if player busts or achieves Flip 7
+
+        Per official rules (lines 134-149):
+        - "If a Second Chance card is revealed during Flip Three, it may be set aside
+          and used immediately if needed. If there are no other active players OR if
+          everyone else already has one, then discard the Second Chance card"
+        - "If another Flip Three or Freeze card is revealed during Flip Three, they
+          are resolved AFTER all 3 cards are drawn (but only if the player hasn't busted)"
 
         Args:
             player_id: The ID of the player receiving Flip Three
@@ -490,6 +499,9 @@ class RoundEngine:
         )
 
         tableau = self.tableaus[player_id]
+
+        # Queue for Flip Three/Freeze action cards drawn during Flip Three
+        queued_action_cards: list[ActionCard] = []
 
         # Draw 3 cards (or until bust/Flip 7)
         for i in range(3):
@@ -503,8 +515,19 @@ class RoundEngine:
 
             # Handle the card based on its type
             if isinstance(card, ActionCard):
-                # Resolve action card immediately
-                self._handle_action_card(player_id, card)
+                # Special handling: Second Chance resolved immediately,
+                # Flip Three/Freeze queued for later
+                if card.action_type == ActionType.SECOND_CHANCE:
+                    # Resolve Second Chance immediately (can be used if needed)
+                    self._handle_action_card(player_id, card)
+                else:
+                    # Queue Flip Three/Freeze to resolve AFTER all 3 cards
+                    queued_action_cards.append(card)
+                    self._log_event(
+                        "action_card_drawn",
+                        player_id=player_id,
+                        data={"action": card.action_type.value, "queued": True},
+                    )
             elif isinstance(card, NumberCard):
                 self._handle_number_card(player_id, card)
             elif isinstance(card, ModifierCard):
@@ -513,6 +536,18 @@ class RoundEngine:
             # Check again if player is still active after handling the card
             if not self.tableaus[player_id].is_active:
                 break
+
+        # Resolve queued action cards AFTER all 3 cards are drawn
+        # (only if player hasn't busted)
+        if not self.tableaus[player_id].is_busted and queued_action_cards:
+            for action_card in queued_action_cards:
+                # Only resolve if player is still active
+                if not self.tableaus[player_id].is_active:
+                    # Player became inactive, discard remaining queued cards
+                    for remaining_card in queued_action_cards[queued_action_cards.index(action_card):]:
+                        self.discard_pile.append(remaining_card)
+                    break
+                self._handle_action_card(player_id, action_card)
 
     def _resolve_second_chance(self, player_id: str) -> None:
         """
@@ -621,13 +656,12 @@ class RoundEngine:
             use_second_chance = False
 
         if use_second_chance:
-            # Use Second Chance - remove it and the duplicate card
-            # The duplicate is the last card added
-            new_number_cards = tableau.number_cards[:-1]  # Remove the duplicate
-
+            # Use Second Chance - discard the duplicate card (which was never added to tableau)
+            # and remove Second Chance
+            # Keep all original cards - the duplicate was detected but never added
             self.tableaus[player_id] = replace(
                 tableau,
-                number_cards=new_number_cards,
+                number_cards=tableau.number_cards,  # Keep original cards unchanged
                 second_chance=False,
                 is_active=False,  # Turn ends immediately
                 is_passed=True,   # Count as passed (not busted)
@@ -760,9 +794,11 @@ class RoundEngine:
         Get list of eligible targets for an action card.
 
         Eligibility depends on the action type:
-        - FREEZE: Active players (not frozen, not passed, not busted)
-        - FLIP_THREE: Active players
-        - SECOND_CHANCE: Active players without Second Chance
+        - FREEZE: Active players only (not frozen, not passed, not busted)
+        - FLIP_THREE: Active players only
+        - SECOND_CHANCE: Active, frozen, or passed players without Second Chance
+          (per rules: "frozen/passed players can still receive Second Chance for future rounds")
+          BUT NOT busted players
 
         Args:
             action_type: The type of action card
@@ -771,14 +807,16 @@ class RoundEngine:
             List of player IDs that can be targeted
         """
         if action_type == ActionType.SECOND_CHANCE:
-            # Can target active players without Second Chance
+            # Can target active, frozen, or passed players without Second Chance
+            # Busted players cannot receive Second Chance
             return [
                 pid
                 for pid in self.player_ids
-                if self.tableaus[pid].is_active and not self.tableaus[pid].second_chance
+                if not self.tableaus[pid].is_busted
+                and not self.tableaus[pid].second_chance
             ]
         else:
-            # FREEZE and FLIP_THREE target active players
+            # FREEZE and FLIP_THREE target active players only
             return [pid for pid in self.player_ids if self.tableaus[pid].is_active]
 
     def _build_decision_context(self, player_id: str) -> BotDecisionContext:
