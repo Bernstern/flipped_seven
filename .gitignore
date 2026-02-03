@@ -125,6 +125,7 @@ dmypy.json
 # Project-specific
 results/
 tournament_results/
+tournament_results_*/
 demo_results/
 quick_game_results/
 *_results/

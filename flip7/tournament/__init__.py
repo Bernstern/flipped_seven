@@ -14,13 +14,13 @@ Main Components:
 Example:
     >>> from pathlib import Path
     >>> from flip7.tournament import TournamentConfig, TournamentOrchestrator
-    >>> from flip7.bots import RandomBot, ConservativeBot
+    >>> from flip7.bots import RandomBot, ScaredyBot
     >>>
     >>> config = TournamentConfig(
     ...     tournament_name="test_tournament",
     ...     players_per_game=2,
     ...     best_of_n=3,
-    ...     bot_classes=[RandomBot, ConservativeBot],
+    ...     bot_classes=[RandomBot, ScaredyBot],
     ...     bot_timeout_seconds=1.0,
     ...     output_dir=Path("./results"),
     ...     save_replays=True,

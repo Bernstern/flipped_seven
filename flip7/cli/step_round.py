@@ -5,20 +5,20 @@ Usage:
     uv run flip7-step [bot1_class] [bot2_class] [OPTIONS]
 
 Examples:
-    # Default: RandomBot vs ConservativeBot
+    # Default: RandomBot vs ScaredyBot
     uv run flip7-step
 
     # Specify bots
-    uv run flip7-step RandomBot ConservativeBot
+    uv run flip7-step RandomBot ScaredyBot
 
     # With custom seed
-    uv run flip7-step RandomBot ConservativeBot --seed 42
+    uv run flip7-step RandomBot ScaredyBot --seed 42
 
     # Simulate mid-game scenario (bot1 has 100 points, bot2 has 150 points, round 8)
-    uv run flip7-step RandomBot ConservativeBot --scores 100,150 --round 8
+    uv run flip7-step RandomBot ScaredyBot --scores 100,150 --round 8
 
     # Custom bot from module
-    uv run flip7-step my_bot.MyBot ConservativeBot
+    uv run flip7-step my_bot.MyBot ScaredyBot
 """
 
 import argparse
@@ -26,7 +26,7 @@ import importlib
 import sys
 from typing import Any, Type
 
-from flip7.bots import ConservativeBot, RandomBot
+from flip7.bots import ScaredyBot, RandomBot
 from flip7.bots.base import BaseBot
 from flip7.types.bot_interface import Bot
 from flip7.utils.round_stepper import RoundStepper
@@ -34,7 +34,7 @@ from flip7.utils.round_stepper import RoundStepper
 # Built-in bots
 BUILTIN_BOTS: dict[str, Type[BaseBot]] = {
     "RandomBot": RandomBot,
-    "ConservativeBot": ConservativeBot,
+    "ScaredyBot": ScaredyBot,
 }
 
 
@@ -86,20 +86,20 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Default: RandomBot vs ConservativeBot
+  # Default: RandomBot vs ScaredyBot
   uv run flip7-step
 
   # Specify bots
-  uv run flip7-step RandomBot ConservativeBot
+  uv run flip7-step RandomBot ScaredyBot
 
   # With custom seed
-  uv run flip7-step RandomBot ConservativeBot --seed 42
+  uv run flip7-step RandomBot ScaredyBot --seed 42
 
   # Simulate mid-game (bot1=100pts, bot2=150pts, round 8)
-  uv run flip7-step RandomBot ConservativeBot --scores 100,150 --round 8
+  uv run flip7-step RandomBot ScaredyBot --scores 100,150 --round 8
 
   # Custom bot from module
-  uv run flip7-step my_bot.MyBot ConservativeBot
+  uv run flip7-step my_bot.MyBot ScaredyBot
         """,
     )
 
@@ -113,8 +113,8 @@ Examples:
     parser.add_argument(
         "bot2",
         nargs="?",
-        default="ConservativeBot",
-        help="Second bot (default: ConservativeBot)",
+        default="ScaredyBot",
+        help="Second bot (default: ScaredyBot)",
     )
 
     parser.add_argument(

@@ -48,7 +48,7 @@ uv run pytest tests/test_bot_compliance.py::test_bot_implements_protocol[MyBot] 
 Test locally:
 
 ```bash
-uv run flip7-step my_bot.MyBot ConservativeBot  # Interactive stepper
+uv run flip7-step my_bot.MyBot ScaredyBot  # Interactive stepper
 uv run flip7  # Tournament (edit tournament_config.py first)
 ```
 
@@ -198,7 +198,7 @@ All 45 tests must pass: protocol implementation, return values, edge cases, no c
 ### 2. Interactive Stepper
 
 ```bash
-uv run flip7-step my_bot.MyBot ConservativeBot
+uv run flip7-step my_bot.MyBot ScaredyBot
 ```
 
 Step through a round turn-by-turn to observe decisions and game state.
@@ -208,7 +208,7 @@ Step through a round turn-by-turn to observe decisions and game state.
 ```python
 from pathlib import Path
 from flip7.core.game_engine import GameEngine
-from flip7.bots import RandomBot, ConservativeBot
+from flip7.bots import RandomBot, ScaredyBot
 from flip7.bots.my_bot import MyBot
 
 
@@ -300,10 +300,10 @@ class RandomBot(BaseBot):
         return random.choice(eligible)
 ```
 
-### ConservativeBot
+### ScaredyBot
 
 ```python
-class ConservativeBot(BaseBot):
+class ScaredyBot(BaseBot):
     """Plays conservatively to minimize busting."""
 
     def decide_hit_or_pass(self, context: BotDecisionContext) -> Literal["hit", "pass"]:

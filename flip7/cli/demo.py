@@ -3,7 +3,7 @@
 
 from pathlib import Path
 from flip7.core.game_engine import GameEngine
-from flip7.bots import RandomBot, ConservativeBot
+from flip7.bots import RandomBot, ScaredyBot
 
 
 def main():
@@ -11,13 +11,13 @@ def main():
     print("FLIP 7 - Quick Demo")
     print("=" * 60)
     print()
-    print("Watching RandomBot vs ConservativeBot play to 200 points...")
+    print("Watching RandomBot vs ScaredyBot play to 200 points...")
     print()
 
     player_ids = ["random", "conservative"]
     bots = {
         "random": RandomBot("random"),
-        "conservative": ConservativeBot("conservative"),
+        "conservative": ScaredyBot("conservative"),
     }
 
     engine = GameEngine(

@@ -147,7 +147,7 @@ Round robin. Each bot plays every other bot. Players per game configurable. Same
 - Bots inherit from base Bot class
 - Must implement: hit/pass decisions, Second Chance usage, action card targeting
 - Game history encoded for replay/visualization
-- Reference bots: RandomBot, ConservativeBot (passes after 2 cards)
+- Reference bots: RandomBot, ScaredyBot (passes after 2 cards)
 - Invalid moves treated as errors
 - Time limit violations = automatic bust
 

@@ -84,14 +84,14 @@ Executes two tournaments:
 ### Interactive Round Stepper
 
 ```bash
-# Default: RandomBot vs ConservativeBot
+# Default: RandomBot vs ScaredyBot
 uv run flip7-step
 
 # Test your bot
-uv run flip7-step my_bot.MyBot ConservativeBot
+uv run flip7-step my_bot.MyBot ScaredyBot
 
 # With seed for reproducibility
-uv run flip7-step RandomBot ConservativeBot --seed 42
+uv run flip7-step RandomBot ScaredyBot --seed 42
 ```
 
 Shows at each decision point:
@@ -170,7 +170,7 @@ Set `SAVE_REPLAYS = True` in config. Auto-generated analysis includes:
 ## Reference Bots
 
 - **RandomBot**: Random decisions (baseline)
-- **ConservativeBot**: Passes at 15+ points
+- **ScaredyBot**: Passes at 15+ points
 - **Hit17Bot**: Hits until 17 (Blackjack-style)
 
 Sample results (100 games head-to-head):
@@ -178,7 +178,7 @@ Sample results (100 games head-to-head):
 | Rank | Bot | Win Rate | Avg Score |
 |------|-----|----------|-----------|
 | 1 | Hit17Bot | 75.0% | 202.2 |
-| 2 | ConservativeBot | 60.0% | 191.2 |
+| 2 | ScaredyBot | 60.0% | 191.2 |
 | 3 | RandomBot | 15.0% | 145.4 |
 
 ## Configuration Examples
@@ -237,7 +237,7 @@ uvx ruff format flip7/
 
 **Bot Not Found**
 - Ensure bot file is in `flip7/bots/` directory
-- Built-in bots: `RandomBot`, `ConservativeBot`, `Hit17Bot`
+- Built-in bots: `RandomBot`, `ScaredyBot`, `Hit17Bot`
 - Custom bots: Use `module.ClassName` format (e.g., `my_bot.MyBot`)
 
 **Bot Timeout**

@@ -438,9 +438,9 @@ def test_bot_discovery_finds_bots():
     """Test that bot discovery finds at least the known bots."""
     bot_names = [cls.__name__ for cls in ALL_BOT_CLASSES]
 
-    # We should at least find RandomBot and ConservativeBot
+    # We should at least find RandomBot and ScaredyBot
     assert "RandomBot" in bot_names, "Should discover RandomBot"
-    assert "ConservativeBot" in bot_names, "Should discover ConservativeBot"
+    assert "ScaredyBot" in bot_names, "Should discover ScaredyBot"
 
     print(f"\nDiscovered {len(ALL_BOT_CLASSES)} bot(s): {', '.join(bot_names)}")
 

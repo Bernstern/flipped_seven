@@ -16,7 +16,7 @@ by importing the config object and passing it to the tournament runner.
 
 from pathlib import Path
 
-from flip7.bots import ConservativeBot, RandomBot
+from flip7.bots import ScaredyBot, RandomBot
 from flip7.tournament.config import TournamentConfig
 
 # Configuration for 100,000+ matches
@@ -35,7 +35,7 @@ config = TournamentConfig(
     # Add your custom bots here for testing
     bot_classes=[
         RandomBot,
-        ConservativeBot,
+        ScaredyBot,
         # Add more bots here:
         # MyCustomBot,
         # AggressiveBot,

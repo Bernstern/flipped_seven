@@ -1,5 +1,5 @@
 """
-ConservativeBot implementation - plays it safe to avoid busting.
+ScaredyBot implementation - plays it safe to avoid busting.
 
 This bot implements a conservative strategy that minimizes risk:
 - Passes when hand value reaches 15 or higher
@@ -15,7 +15,7 @@ from flip7.types.cards import ActionType, NumberCard
 from flip7.types.events import BotDecisionContext
 
 
-class ConservativeBot(BaseBot):
+class ScaredyBot(BaseBot):
     """
     A bot that plays conservatively to minimize busting.
 
@@ -30,9 +30,9 @@ class ConservativeBot(BaseBot):
     opponent for testing aggressive strategies.
     """
 
-    def __init__(self, bot_name: str = "ConservativeBot") -> None:
+    def __init__(self, bot_name: str = "ScaredyBot") -> None:
         """
-        Initialize the ConservativeBot.
+        Initialize the ScaredyBot.
 
         Args:
             bot_name: The unique identifier for this bot instance

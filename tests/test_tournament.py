@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import shutil
 
-from flip7.bots import ConservativeBot, RandomBot
+from flip7.bots import ScaredyBot, RandomBot
 from flip7.tournament import (
     TournamentConfig,
     TournamentOrchestrator,
@@ -17,12 +17,12 @@ from flip7.tournament import (
 
 def test_round_robin_matchups():
     """Test round-robin matchup generation."""
-    bot_classes = [RandomBot, ConservativeBot]
+    bot_classes = [RandomBot, ScaredyBot]
     matchups = generate_round_robin_matchups(bot_classes, 2)
 
     # Should have 1 matchup for 2 bots with 2 players per game
     assert len(matchups) == 1
-    assert matchups[0] == ("RandomBot", "ConservativeBot")
+    assert matchups[0] == ("RandomBot", "ScaredyBot")
 
 
 def test_count_matchups():
@@ -50,7 +50,7 @@ def test_tournament_config_validation():
             tournament_name="test",
             players_per_game=2,
             best_of_n=3,
-            bot_classes=[RandomBot, ConservativeBot],
+            bot_classes=[RandomBot, ScaredyBot],
             bot_timeout_seconds=1.0,
             output_dir=output_dir,
             save_replays=False,
@@ -63,7 +63,7 @@ def test_tournament_config_validation():
                 tournament_name="test",
                 players_per_game=5,  # Invalid
                 best_of_n=3,
-                bot_classes=[RandomBot, ConservativeBot],
+                bot_classes=[RandomBot, ScaredyBot],
                 bot_timeout_seconds=1.0,
                 output_dir=output_dir,
                 save_replays=False,
@@ -78,7 +78,7 @@ def test_tournament_config_validation():
                 tournament_name="test",
                 players_per_game=2,
                 best_of_n=4,  # Invalid (even)
-                bot_classes=[RandomBot, ConservativeBot],
+                bot_classes=[RandomBot, ScaredyBot],
                 bot_timeout_seconds=1.0,
                 output_dir=output_dir,
                 save_replays=False,
@@ -97,7 +97,7 @@ def test_tournament_execution():
             tournament_name="test_tournament",
             players_per_game=2,
             best_of_n=1,  # Quick test
-            bot_classes=[RandomBot, ConservativeBot],
+            bot_classes=[RandomBot, ScaredyBot],
             bot_timeout_seconds=5.0,
             output_dir=output_dir,
             save_replays=False,
@@ -112,7 +112,7 @@ def test_tournament_execution():
         assert results.total_matches == 1
         assert len(results.bot_statistics) == 2
         assert "RandomBot" in results.bot_statistics
-        assert "ConservativeBot" in results.bot_statistics
+        assert "ScaredyBot" in results.bot_statistics
 
         # Verify one bot won
         leaderboard = results.get_leaderboard()

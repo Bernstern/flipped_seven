@@ -11,7 +11,7 @@ import pytest
 from pathlib import Path
 from flip7.core import RoundEngine
 from flip7.events.event_logger import EventLogger
-from flip7.bots import RandomBot, ConservativeBot
+from flip7.bots import RandomBot, ScaredyBot
 from flip7.types.cards import ActionCard, NumberCard
 
 
@@ -24,7 +24,7 @@ def test_second_chance_prevents_bust():
     player_ids = ["p1", "p2"]
     bots = {
         "p1": RandomBot("p1"),
-        "p2": ConservativeBot("p2"),
+        "p2": ScaredyBot("p2"),
     }
 
     with EventLogger(Path("/tmp/test_second_chance.jsonl")) as logger:
@@ -56,7 +56,7 @@ def test_freeze_ends_turn():
     player_ids = ["p1", "p2"]
     bots = {
         "p1": RandomBot("p1"),
-        "p2": ConservativeBot("p2"),
+        "p2": ScaredyBot("p2"),
     }
 
     with EventLogger(Path("/tmp/test_freeze.jsonl")) as logger:

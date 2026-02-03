@@ -11,20 +11,20 @@ Step through a single round turn-by-turn to debug bot behavior.
 uv run flip7-step
 
 # Custom bots
-uv run flip7-step my_bot.MyBot ConservativeBot
+uv run flip7-step my_bot.MyBot ScaredyBot
 
 # Fixed seed
-uv run flip7-step RandomBot ConservativeBot --seed 42
+uv run flip7-step RandomBot ScaredyBot --seed 42
 
 # Mid-game scenario (scores, round number)
-uv run flip7-step RandomBot ConservativeBot --scores 100,150 --round 8
+uv run flip7-step RandomBot ScaredyBot --scores 100,150 --round 8
 ```
 
 ### Test Scenarios
 
 ```bash
 # Close late-game
-uv run flip7-step MyBot ConservativeBot --scores 180,185 --round 15
+uv run flip7-step MyBot ScaredyBot --scores 180,185 --round 15
 
 # Behind, needs catch-up
 uv run flip7-step MyBot RandomBot --scores 120,180 --round 12
@@ -112,7 +112,7 @@ yes "" | head -50 | uv run flip7-step
 ### Troubleshooting
 
 **Bot not found**
-- Built-in: `RandomBot`, `ConservativeBot`
+- Built-in: `RandomBot`, `ScaredyBot`
 - Custom: `module.ClassName` format
 - Check file in current directory or PYTHONPATH
 

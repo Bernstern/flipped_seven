@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from flip7.bots import ConservativeBot, RandomBot
+from flip7.bots import ScaredyBot, RandomBot
 from flip7.constants import WINNING_SCORE
 from flip7.core.game_engine import GameEngine
 
@@ -98,7 +98,7 @@ def test_winner_has_highest_score():
     player_ids = ["p1", "p2", "p3"]
     bots = {
         "p1": RandomBot("p1"),
-        "p2": ConservativeBot("p2"),
+        "p2": ScaredyBot("p2"),
         "p3": RandomBot("p3"),
     }
 
@@ -162,8 +162,8 @@ def test_multiple_rounds_played():
     """Test that games typically require multiple rounds to reach 200."""
     player_ids = ["p1", "p2"]
     bots = {
-        "p1": ConservativeBot("p1"),
-        "p2": ConservativeBot("p2"),
+        "p1": ScaredyBot("p1"),
+        "p2": ScaredyBot("p2"),
     }
 
     engine = GameEngine(
@@ -252,9 +252,9 @@ def test_all_players_included_in_scores():
     player_ids = ["p1", "p2", "p3", "p4"]
     bots = {
         "p1": RandomBot("p1"),
-        "p2": ConservativeBot("p2"),
+        "p2": ScaredyBot("p2"),
         "p3": RandomBot("p3"),
-        "p4": ConservativeBot("p4"),
+        "p4": ScaredyBot("p4"),
     }
 
     engine = GameEngine(

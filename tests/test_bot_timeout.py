@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from flip7.bots import ConservativeBot, RandomBot
+from flip7.bots import ScaredyBot, RandomBot
 from flip7.bots.timeout_bot import TimeoutBot
 from flip7.core.deck import create_deck, shuffle_deck
 from flip7.core.round_engine import RoundEngine
@@ -34,7 +34,7 @@ def test_bot_timeout_on_hit_pass_causes_bust():
     player_ids = ["timeout_player", "normal_player"]
     bots = {
         "timeout_player": TimeoutBot("timeout_player", timeout_on="hit_or_pass", timeout_duration=10.0),
-        "normal_player": ConservativeBot("normal_player"),
+        "normal_player": ScaredyBot("normal_player"),
     }
 
     with EventLogger(Path("/tmp/test_timeout_hit_pass.jsonl")) as logger:
@@ -73,8 +73,8 @@ def test_bot_timeout_on_action_target_uses_first_eligible():
     player_ids = ["timeout_player", "p2", "p3"]
     bots = {
         "timeout_player": TimeoutBot("timeout_player", timeout_on="action_target", timeout_duration=10.0),
-        "p2": ConservativeBot("p2"),
-        "p3": ConservativeBot("p3"),
+        "p2": ScaredyBot("p2"),
+        "p3": ScaredyBot("p3"),
     }
 
     with EventLogger(Path("/tmp/test_timeout_action_target.jsonl")) as logger:
@@ -119,7 +119,7 @@ def test_bot_timeout_during_second_chance_usage():
     player_ids = ["timeout_player", "normal_player"]
     bots = {
         "timeout_player": TimeoutBot("timeout_player", timeout_on="second_chance", timeout_duration=10.0),
-        "normal_player": ConservativeBot("normal_player"),
+        "normal_player": ScaredyBot("normal_player"),
     }
 
     with EventLogger(Path("/tmp/test_timeout_second_chance.jsonl")) as logger:
@@ -166,7 +166,7 @@ def test_game_continues_after_bot_timeout():
     bots = {
         "timeout_player": TimeoutBot("timeout_player", timeout_on="hit_or_pass", timeout_duration=10.0),
         "p2": RandomBot("p2"),
-        "p3": ConservativeBot("p3"),
+        "p3": ScaredyBot("p3"),
     }
 
     with EventLogger(Path("/tmp/test_continue_after_timeout.jsonl")) as logger:
@@ -206,7 +206,7 @@ def test_multiple_timeouts_in_same_round():
     bots = {
         "timeout1": TimeoutBot("timeout1", timeout_on="hit_or_pass", timeout_duration=10.0),
         "timeout2": TimeoutBot("timeout2", timeout_on="hit_or_pass", timeout_duration=10.0),
-        "normal": ConservativeBot("normal"),
+        "normal": ScaredyBot("normal"),
     }
 
     with EventLogger(Path("/tmp/test_multiple_timeouts.jsonl")) as logger:
@@ -244,7 +244,7 @@ def test_timeout_with_subsecond_precision():
     player_ids = ["timeout_player", "normal_player"]
     bots = {
         "timeout_player": TimeoutBot("timeout_player", timeout_on="hit_or_pass", timeout_duration=10.0),
-        "normal_player": ConservativeBot("normal_player"),
+        "normal_player": ScaredyBot("normal_player"),
     }
 
     with EventLogger(Path("/tmp/test_subsecond_timeout.jsonl")) as logger:
@@ -274,7 +274,7 @@ def test_timeout_with_normal_bot_completes():
     """Test that a normal bot that completes quickly doesn't timeout."""
     player_ids = ["fast_player", "another_fast"]
     bots = {
-        "fast_player": ConservativeBot("fast_player"),
+        "fast_player": ScaredyBot("fast_player"),
         "another_fast": RandomBot("another_fast"),
     }
 
@@ -311,7 +311,7 @@ def test_timeout_marks_player_inactive():
     player_ids = ["timeout_player", "normal_player"]
     bots = {
         "timeout_player": TimeoutBot("timeout_player", timeout_on="hit_or_pass", timeout_duration=10.0),
-        "normal_player": ConservativeBot("normal_player"),
+        "normal_player": ScaredyBot("normal_player"),
     }
 
     with EventLogger(Path("/tmp/test_timeout_inactive.jsonl")) as logger:
@@ -348,7 +348,7 @@ def test_timeout_bot_does_not_timeout_on_other_methods():
     player_ids = ["timeout_player", "normal"]
     bots = {
         "timeout_player": TimeoutBot("timeout_player", timeout_on="hit_or_pass", timeout_duration=10.0),
-        "normal": ConservativeBot("normal"),
+        "normal": ScaredyBot("normal"),
     }
 
     with EventLogger(Path("/tmp/test_selective_timeout.jsonl")) as logger:
