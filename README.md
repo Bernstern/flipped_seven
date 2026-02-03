@@ -81,7 +81,7 @@ class MyBot(BaseBot):
 Add to `tournament_config.py`:
 
 ```python
-from my_bot import MyBot
+from flip7.bots.my_bot import MyBot
 
 BOT_CLASSES = [RandomBot, ConservativeBot, MyBot]
 ```
