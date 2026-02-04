@@ -3,15 +3,25 @@ name = "flip7"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
+    "boto3>=1.42.41",
     "click>=8.1.0",
+    "numpy>=2.4.2",
+    "pandas>=3.0.0",
     "pytest>=9.0.2",
     "rich>=13.0.0",
+    "scikit-learn>=1.8.0",
 ]
 
 [project.scripts]
 flip7 = "flip7.cli.main:cli"
 flip7-step = "flip7.cli.step_round:main"
 flip7-demo = "flip7.cli.demo:main"
+flip7-admin-seed-token = "flip7.hosted_cli:main"
+flip7-api-submit-bot = "flip7.hosted_cli:main"
+flip7-api-get-me = "flip7.hosted_cli:main"
+flip7-admin-run-tournament = "flip7.hosted_cli:main"
+flip7-admin-publish = "flip7.hosted_cli:main"
+flip7-api-leaderboard = "flip7.hosted_cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -47,3 +57,6 @@ target-version = "py311"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.uv.workspace]
+members = ["hosted/app"]
