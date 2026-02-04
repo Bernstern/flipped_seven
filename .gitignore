@@ -133,3 +133,10 @@ quick_game_results/
 *.bak
 show_bot_context.py
 example_bot_with_context.py
+
+# Hosted build artifacts
+/hosted/.build/
+/hosted/artifacts/
+/hosted/infra/terraform/.terraform/
+/hosted/infra/terraform/terraform.tfstate
+/hosted/infra/terraform/terraform.tfstate.backup

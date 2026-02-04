@@ -6,6 +6,22 @@ Strongly-typed, event-sourced Python implementation of Flip 7 for bot developmen
 
 Flip 7: Draw numbered cards (0-12), modifiers (X2, +2/+4/+6/+8/+10), and action cards (Freeze, Flip Three, Second Chance). Goal: reach exactly 7 unique number cards for bonus points without busting (drawing duplicates). First to 200 points wins.
 
+## Hosted Competition
+
+We run a hosted tournament service for submitted bots. Leaderboard results are updated nightly. A UI for leaderboard viewing is coming soon. Until then, use the API/CLI instructions in `hosted/README.md` and competitor instructions in `COMPETITOR_README.md`.
+
+**Fair Play:** We reserve the right to disqualify entries that violate the spirit of the game (e.g., exploiting system/infra limits or attempting to break isolation).
+
+## Allowed Dependencies (Hosted Bots)
+
+The hosted environment includes standard packages. Bots must only depend on Python stdlib plus:
+
+- `numpy`
+- `pandas`
+- `scikit-learn`
+
+If you need more packages, ask first.
+
 ## CLI Tools
 
 - `flip7` - Full tournament (head-to-head + all-vs-all)
